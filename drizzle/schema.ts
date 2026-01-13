@@ -253,6 +253,48 @@ export type LeadEmail = typeof leadEmails.$inferSelect;
 export type InsertLeadEmail = typeof leadEmails.$inferInsert;
 
 // ============================================================================
+// EMAIL CAMPAIGNS (Campagnes d'envoi de masse)
+// ============================================================================
+
+export const emailCampaigns = mysqlTable("emailCampaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  templateId: int("templateId"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  status: mysqlEnum("status", ["draft", "sending", "completed", "paused"]).default("draft").notNull(),
+  totalRecipients: int("totalRecipients").default(0).notNull(),
+  sentCount: int("sentCount").default(0).notNull(),
+  failedCount: int("failedCount").default(0).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaign = typeof emailCampaigns.$inferInsert;
+
+// ============================================================================
+// EMAIL QUEUE (File d'attente des envois)
+// ============================================================================
+
+export const emailQueue = mysqlTable("emailQueue", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  leadId: int("leadId").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  status: mysqlEnum("status", ["pending", "sending", "sent", "failed"]).default("pending").notNull(),
+  errorMessage: text("errorMessage"),
+  scheduledAt: timestamp("scheduledAt").defaultNow().notNull(),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type EmailQueueItem = typeof emailQueue.$inferSelect;
+export type InsertEmailQueueItem = typeof emailQueue.$inferInsert;
+
+// ============================================================================
 // PROJECTS
 // ============================================================================
 

@@ -491,3 +491,33 @@
 - [x] Tests vitest pour leadsRouter (5 tests passés)
 - [x] Tests de conversion Lead → Client
 - [x] Tests des statistiques du pipeline
+
+## Import CSV et Envoi de Masse (TERMINÉ)
+
+### Import CSV de leads
+- [x] Créer mutation importLeadsFromCSV dans leadsRouter
+- [x] Parser CSV avec papaparse
+- [x] Mapping automatique des colonnes (firstName, lastName, email, etc.)
+- [x] Validation des données (email, téléphone)
+- [x] Détection des doublons par email
+- [x] Interface d'upload CSV dans page Leads
+- [x] Prévisualisation des 5 premières lignes avant import
+- [x] Rapport d'import (succès, erreurs, doublons)
+
+### Envoi de masse d'émails
+- [x] Créer table emailCampaigns pour les campagnes
+- [x] Créer table emailQueue pour la file d'attente
+- [x] Mutation createBulkCampaign avec limite 500/jour
+- [x] Mutation sendCampaign pour lancer l'envoi
+- [x] Système de file d'attente avec statuts (pending, sending, sent, failed)
+- [x] Compteur d'envois quotidiens avec vérification
+- [x] Interface de sélection multiple de leads
+- [x] Modal de création de campagne d'envoi
+- [x] Délai de 1s entre chaque envoi (rate limiting)
+- [x] Rapport de campagne (envoyés, en attente, échecs)
+
+### Tests
+- [x] Tests vitest pour import CSV (6 tests passés)
+- [x] Tests vitest pour envoi de masse
+- [x] Tests de la limite 500/jour
+- [x] Tests de détection des doublons

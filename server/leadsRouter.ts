@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
 import { getDb } from "./db";
-import { leads, leadEmails, emailTemplates, clients } from "../drizzle/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { leads, leadEmails, emailTemplates, clients, emailCampaigns, emailQueue } from "../drizzle/schema";
+import { eq, and, desc, sql, gte } from "drizzle-orm";
 import { sendEmail } from "./emailService";
 
 /**
@@ -344,6 +344,295 @@ export const leadsRouter = router({
 
     return stats;
   }),
+
+  // Importer des leads depuis un CSV
+  importFromCSV: protectedProcedure
+    .input(
+      z.object({
+        leads: z.array(
+          z.object({
+            firstName: z.string(),
+            lastName: z.string(),
+            email: z.string().email().optional(),
+            phone: z.string().optional(),
+            company: z.string().optional(),
+            position: z.string().optional(),
+            status: z.enum(["suspect", "analyse", "negociation", "conclusion"]).default("suspect"),
+            potentialAmount: z.number().optional(),
+            probability: z.number().min(0).max(100).default(25),
+            source: z.string().optional(),
+            notes: z.string().optional(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const results = {
+        total: input.leads.length,
+        imported: 0,
+        duplicates: 0,
+        errors: 0,
+        errorDetails: [] as string[],
+      };
+
+      for (const leadData of input.leads) {
+        try {
+          // Vérifier les doublons par email
+          if (leadData.email) {
+            const existing = await db
+              .select()
+              .from(leads)
+              .where(eq(leads.email, leadData.email))
+              .limit(1);
+
+            if (existing.length > 0) {
+              results.duplicates++;
+              continue;
+            }
+          }
+
+          // Insérer le lead
+          await db.insert(leads).values({
+            firstName: leadData.firstName,
+            lastName: leadData.lastName,
+            email: leadData.email,
+            phone: leadData.phone,
+            company: leadData.company,
+            position: leadData.position,
+            status: leadData.status,
+            potentialAmount: leadData.potentialAmount?.toString(),
+            probability: leadData.probability,
+            source: leadData.source,
+            notes: leadData.notes,
+          });
+
+          results.imported++;
+        } catch (error) {
+          results.errors++;
+          results.errorDetails.push(`${leadData.firstName} ${leadData.lastName}: ${error}`);
+        }
+      }
+
+      return results;
+    }),
+
+  // Créer une campagne d'envoi de masse
+  createBulkCampaign: protectedProcedure
+    .input(
+      z.object({
+        name: z.string(),
+        templateId: z.number().optional(),
+        subject: z.string(),
+        body: z.string(),
+        leadIds: z.array(z.number()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Vérifier la limite quotidienne (500 emails/jour pour Gmail)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const sentToday = await db
+        .select()
+        .from(emailQueue)
+        .where(and(eq(emailQueue.status, "sent"), gte(emailQueue.sentAt, today)));
+
+      const remainingQuota = 500 - sentToday.length;
+
+      if (remainingQuota <= 0) {
+        throw new Error("Limite quotidienne d'envoi atteinte (500 emails/jour)");
+      }
+
+      // Créer la campagne
+      const campaignResult = await db.insert(emailCampaigns).values({
+        name: input.name,
+        templateId: input.templateId,
+        subject: input.subject,
+        body: input.body,
+        status: "draft",
+        totalRecipients: Math.min(input.leadIds.length, remainingQuota),
+        createdBy: ctx.user.id,
+      });
+
+      const campaignId = typeof campaignResult === 'object' && 'insertId' in campaignResult ? campaignResult.insertId : campaignResult[0];
+
+      // Ajouter les emails à la file d'attente (limité au quota restant)
+      const leadsToSend = input.leadIds.slice(0, remainingQuota);
+
+      for (const leadId of leadsToSend) {
+        const leadResult = await db
+          .select()
+          .from(leads)
+          .where(eq(leads.id, leadId))
+          .limit(1);
+
+        if (leadResult.length === 0 || !leadResult[0].email) continue;
+
+        const lead = leadResult[0];
+
+        // Remplacer les variables
+        const subject = input.subject.replace(/\{\{firstName\}\}/g, lead.firstName);
+        const body = input.body.replace(/\{\{firstName\}\}/g, lead.firstName);
+
+        await db.insert(emailQueue).values({
+          campaignId: campaignId as number,
+          leadId,
+          subject,
+          body,
+          status: "pending",
+        });
+      }
+
+      return { campaignId, totalQueued: leadsToSend.length, remainingQuota };
+    }),
+
+  // Lancer l'envoi d'une campagne
+  sendCampaign: protectedProcedure
+    .input(z.object({ campaignId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Mettre à jour le statut de la campagne
+      await db
+        .update(emailCampaigns)
+        .set({ status: "sending" })
+        .where(eq(emailCampaigns.id, input.campaignId));
+
+      // Récupérer les emails en attente
+      const pendingEmails = await db
+        .select()
+        .from(emailQueue)
+        .where(and(eq(emailQueue.campaignId, input.campaignId), eq(emailQueue.status, "pending")));
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      // Envoyer les emails
+      for (const queueItem of pendingEmails) {
+        try {
+          // Mettre à jour le statut à "sending"
+          await db
+            .update(emailQueue)
+            .set({ status: "sending" })
+            .where(eq(emailQueue.id, queueItem.id));
+
+          // Récupérer le lead
+          const leadResult = await db
+            .select()
+            .from(leads)
+            .where(eq(leads.id, queueItem.leadId))
+            .limit(1);
+
+          if (leadResult.length === 0 || !leadResult[0].email) {
+            throw new Error("Lead not found or no email");
+          }
+
+          const lead = leadResult[0];
+
+          // Envoyer l'email
+          const sent = await sendEmail({
+            to: lead.email!,
+            subject: queueItem.subject,
+            html: `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${queueItem.body}</div>`,
+            text: queueItem.body,
+          });
+
+          if (sent) {
+            // Mettre à jour le statut à "sent"
+            await db
+              .update(emailQueue)
+              .set({ status: "sent", sentAt: new Date() })
+              .where(eq(emailQueue.id, queueItem.id));
+
+            // Enregistrer dans l'historique
+            await db.insert(leadEmails).values({
+              leadId: queueItem.leadId,
+              subject: queueItem.subject,
+              body: queueItem.body,
+              sentBy: ctx.user.id,
+              status: "sent",
+            });
+
+            // Mettre à jour la date de dernier contact
+            await db
+              .update(leads)
+              .set({ lastContactDate: new Date() })
+              .where(eq(leads.id, queueItem.leadId));
+
+            sentCount++;
+          } else {
+            throw new Error("Failed to send email");
+          }
+        } catch (error) {
+          // Mettre à jour le statut à "failed"
+          await db
+            .update(emailQueue)
+            .set({ status: "failed", errorMessage: String(error) })
+            .where(eq(emailQueue.id, queueItem.id));
+
+          failedCount++;
+        }
+
+        // Petit délai entre les envois pour éviter le rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Mettre à jour la campagne
+      await db
+        .update(emailCampaigns)
+        .set({
+          status: "completed",
+          sentCount,
+          failedCount,
+          completedAt: new Date(),
+        })
+        .where(eq(emailCampaigns.id, input.campaignId));
+
+      return { sentCount, failedCount };
+    }),
+
+  // Obtenir les campagnes
+  getCampaigns: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+
+    return await db
+      .select()
+      .from(emailCampaigns)
+      .orderBy(desc(emailCampaigns.createdAt));
+  }),
+
+  // Obtenir les détails d'une campagne
+  getCampaignDetails: protectedProcedure
+    .input(z.object({ campaignId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const campaign = await db
+        .select()
+        .from(emailCampaigns)
+        .where(eq(emailCampaigns.id, input.campaignId))
+        .limit(1);
+
+      const queueItems = await db
+        .select()
+        .from(emailQueue)
+        .where(eq(emailQueue.campaignId, input.campaignId))
+        .orderBy(emailQueue.status, desc(emailQueue.createdAt));
+
+      return {
+        campaign: campaign[0] || null,
+        queueItems,
+      };
+    }),
 });
 
 // Router pour les templates d'emails

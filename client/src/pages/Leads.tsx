@@ -24,7 +24,11 @@ import {
   UserCheck,
   Filter,
   TrendingUp,
+  Upload,
+  Send,
+  CheckSquare,
 } from "lucide-react";
+import Papa from "papaparse";
 
 type ViewMode = "list" | "cards" | "kanban";
 type LeadStatus = "suspect" | "analyse" | "negociation" | "conclusion";
@@ -50,6 +54,9 @@ export default function Leads() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isBulkEmailDialogOpen, setIsBulkEmailDialogOpen] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
 
   const handleOpenEmailDialog = (lead: any) => {
     setSelectedLead(lead);
@@ -116,13 +123,57 @@ export default function Leads() {
             <h1 className="text-3xl font-bold">Prospection</h1>
             <p className="text-muted-foreground">Pipeline de vente et gestion des leads</p>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau Lead
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importer CSV
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Importer des leads depuis un CSV</DialogTitle>
+                  <DialogDescription>
+                    Uploadez un fichier CSV avec les colonnes : firstName, lastName, email, phone, company, position
+                  </DialogDescription>
+                </DialogHeader>
+                <ImportCSVForm onSuccess={() => { setIsImportDialogOpen(false); refetch(); }} />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkEmailDialogOpen} onOpenChange={setIsBulkEmailDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={selectedLeads.length === 0}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Envoi de masse ({selectedLeads.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Envoi de masse d'emails</DialogTitle>
+                  <DialogDescription>
+                    Envoyer un email à {selectedLeads.length} leads sélectionnés (limite : 500/jour)
+                  </DialogDescription>
+                </DialogHeader>
+                <BulkEmailForm
+                  leadIds={selectedLeads}
+                  onSuccess={() => {
+                    setIsBulkEmailDialogOpen(false);
+                    setSelectedLeads([]);
+                    refetch();
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter un lead
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Ajouter un Lead</DialogTitle>
@@ -131,6 +182,7 @@ export default function Leads() {
               <AddLeadForm onSuccess={() => { setIsAddDialogOpen(false); refetch(); }} />
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Statistiques */}
@@ -723,6 +775,234 @@ function SendEmailForm({ lead, onSuccess }: { lead: any; onSuccess: () => void }
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={sendEmailMutation.isPending}>
           {sendEmailMutation.isPending ? "Envoi en cours..." : "Envoyer l'email"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Composant ImportCSVForm
+function ImportCSVForm({ onSuccess }: { onSuccess: () => void }) {
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [preview, setPreview] = useState<any[]>([]);
+  const importMutation = trpc.leads.importFromCSV.useMutation();
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      complete: (results) => {
+        setCsvData(results.data);
+        setPreview(results.data.slice(0, 5)); // Prévisualiser les 5 premiers
+      },
+      error: (error) => {
+        toast.error(`Erreur de parsing CSV: ${error.message}`);
+      },
+    });
+  };
+
+  const handleImport = async () => {
+    try {
+      const result = await importMutation.mutateAsync({
+        leads: csvData.map((row: any) => ({
+          firstName: row.firstName || row.prenom || "",
+          lastName: row.lastName || row.nom || "",
+          email: row.email || "",
+          phone: row.phone || row.telephone || "",
+          company: row.company || row.entreprise || "",
+          position: row.position || row.poste || "",
+          status: "suspect" as const,
+          potentialAmount: parseFloat(row.potentialAmount || row.montant || "0") || undefined,
+          probability: parseInt(row.probability || row.probabilite || "25") || 25,
+          source: row.source || "Import CSV",
+          notes: row.notes || "",
+        })),
+      });
+
+      toast.success(
+        `Import terminé : ${result.imported} leads importés, ${result.duplicates} doublons ignorés, ${result.errors} erreurs`
+      );
+      onSuccess();
+    } catch (error) {
+      toast.error("Erreur lors de l'import");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="csv-file">Fichier CSV</Label>
+        <Input
+          id="csv-file"
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Colonnes attendues : firstName, lastName, email, phone, company, position
+        </p>
+      </div>
+
+      {preview.length > 0 && (
+        <div>
+          <Label>Prévisualisation ({csvData.length} lignes)</Label>
+          <div className="mt-2 border rounded-md overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-2 text-left">Prénom</th>
+                  <th className="px-4 py-2 text-left">Nom</th>
+                  <th className="px-4 py-2 text-left">Email</th>
+                  <th className="px-4 py-2 text-left">Entreprise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((row, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-4 py-2">{row.firstName || row.prenom}</td>
+                    <td className="px-4 py-2">{row.lastName || row.nom}</td>
+                    <td className="px-4 py-2">{row.email}</td>
+                    <td className="px-4 py-2">{row.company || row.entreprise}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          onClick={handleImport}
+          disabled={csvData.length === 0 || importMutation.isPending}
+        >
+          {importMutation.isPending ? "Import en cours..." : `Importer ${csvData.length} leads`}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// Composant BulkEmailForm
+function BulkEmailForm({ leadIds, onSuccess }: { leadIds: number[]; onSuccess: () => void }) {
+  const [campaignName, setCampaignName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  const { data: templates = [] } = trpc.emailTemplates.list.useQuery();
+  const createCampaignMutation = trpc.leads.createBulkCampaign.useMutation();
+  const sendCampaignMutation = trpc.leads.sendCampaign.useMutation();
+
+  const handleTemplateChange = (templateId: string) => {
+    const id = parseInt(templateId);
+    setSelectedTemplateId(id);
+    const template = templates.find((t) => t.id === id);
+    if (template) {
+      setSubject(template.subject);
+      setBody(template.body);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      // Créer la campagne
+      const campaign = await createCampaignMutation.mutateAsync({
+        name: campaignName,
+        templateId: selectedTemplateId || undefined,
+        subject,
+        body,
+        leadIds,
+      });
+
+      toast.success(`Campagne créée : ${campaign.totalQueued} emails en file d'attente`);
+
+      // Lancer l'envoi
+      const result = await sendCampaignMutation.mutateAsync({
+        campaignId: campaign.campaignId as number,
+      });
+
+      toast.success(`Envoi terminé : ${result.sentCount} envoyés, ${result.failedCount} échecs`);
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'envoi");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="campaign-name">Nom de la campagne</Label>
+        <Input
+          id="campaign-name"
+          value={campaignName}
+          onChange={(e) => setCampaignName(e.target.value)}
+          placeholder="Ex: Vœux 2026 - Avocats Paris"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="template">Template d'email</Label>
+        <Select value={selectedTemplateId?.toString() || ""} onValueChange={handleTemplateChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner un template" />
+          </SelectTrigger>
+          <SelectContent>
+            {templates.map((template) => (
+              <SelectItem key={template.id} value={template.id.toString()}>
+                {template.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="subject">Objet</Label>
+        <Input
+          id="subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="body">Message</Label>
+        <Textarea
+          id="body"
+          rows={10}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          required
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Les variables {"{{firstName}}"} seront remplacées automatiquement
+        </p>
+      </div>
+
+      <div className="bg-muted p-4 rounded-md">
+        <p className="text-sm">
+          <strong>{leadIds.length}</strong> leads sélectionnés
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Limite Gmail : 500 emails/jour
+        </p>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          type="submit"
+          disabled={createCampaignMutation.isPending || sendCampaignMutation.isPending}
+        >
+          {createCampaignMutation.isPending || sendCampaignMutation.isPending
+            ? "Envoi en cours..."
+            : "Créer et envoyer la campagne"}
         </Button>
       </div>
     </form>
