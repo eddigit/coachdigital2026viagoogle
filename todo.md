@@ -218,3 +218,12 @@
 - [x] Page acceptation invitation (/client/invitation/:token)
 - [x] Création compte client avec mot de passe
 - [x] Liaison automatique client → clientUser
+
+
+## Nouvelles Fonctionnalités (demande utilisateur)
+- [x] Export PDF des cahiers des charges avec mise en page professionnelle
+- [x] Accès client aux documents (liste devis/factures dans dashboard client)
+- [x] Téléchargement PDF depuis le dashboard client
+- [x] Bouton "Convertir en facture" sur les devis acceptés
+- [x] Copie automatique des lignes devis → facture
+- [ ] Tests complets des 3 nouvelles fonctionnalités

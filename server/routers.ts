@@ -4,7 +4,10 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import { getDb } from "./db";
 import * as clientAuth from "./clientAuth";
+import { clientUsers } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 // ============================================================================
 // SCHEMAS
@@ -159,8 +162,51 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
-        await db.deleteClient(input.id);
+        await db.deleteDocument(input.id);
         return { success: true };
+      }),
+    
+    convertToInvoice: protectedProcedure
+      .input(z.object({ quoteId: z.number() }))
+      .mutation(async ({ input }) => {
+        // Récupérer le devis avec ses lignes
+        const quote = await db.getDocumentById(input.quoteId);
+        if (!quote) {
+          throw new Error("Devis introuvable");
+        }
+        
+        if (quote.type !== "quote") {
+          throw new Error("Ce document n'est pas un devis");
+        }
+        
+        const lines = await db.getDocumentLinesByDocumentId(input.quoteId);
+        
+        // Créer la facture avec les mêmes données
+        const invoiceId = await db.createDocument({
+          clientId: quote.clientId,
+          projectId: quote.projectId,
+          type: "invoice",
+          date: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 jours
+          validityDate: null,
+          subject: quote.subject,
+          introduction: quote.introduction,
+          conclusion: quote.conclusion,
+          notes: `Facture générée depuis le devis ${quote.number}`,
+          paymentTerms: quote.paymentTerms,
+          paymentMethod: quote.paymentMethod,
+          isAcompteRequired: quote.isAcompteRequired,
+          acomptePercentage: quote.acomptePercentage,
+          lines: lines.map((line) => ({
+            description: line.description,
+            quantity: line.quantity || "1",
+            unit: line.unit || "unité",
+            unitPriceHt: line.unitPriceHt,
+            tvaRate: line.tvaRate,
+          })),
+        });
+        
+        return { success: true, invoiceId };
       }),
   }),
 
@@ -285,6 +331,25 @@ export const appRouter = router({
       .input(z.object({ clientId: z.number() }))
       .query(async ({ input }) => {
         return await db.getDocumentsByClientId(input.clientId);
+      }),
+    
+    listByClientUser: publicProcedure
+      .input(z.object({ clientUserId: z.number() }))
+      .query(async ({ input }) => {
+        const database = await getDb();
+        if (!database) return [];
+        
+        // Trouver le client associé au clientUser
+        const result = await database
+          .select()
+          .from(clientUsers)
+          .where(eq(clientUsers.id, input.clientUserId))
+          .limit(1);
+        
+        if (result.length === 0) return [];
+        
+        // Récupérer tous les documents du client
+        return await db.getDocumentsByClientId(result[0].clientId);
       }),
     
     create: protectedProcedure

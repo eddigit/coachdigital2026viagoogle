@@ -12,14 +12,31 @@ import {
 import { trpc } from "@/lib/trpc";
 import { DocumentForm } from "@/components/DocumentForm";
 import { downloadDocumentPDF } from "@/lib/pdfGenerator";
-import { FileText, Download, Plus, Eye } from "lucide-react";
+import { FileText, Download, Plus, Eye, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Documents() {
+  const utils = trpc.useUtils();
   const { data: documents, isLoading } = trpc.documents.list.useQuery();
   const { data: clients } = trpc.clients.list.useQuery();
   const { data: companyData } = trpc.company.get.useQuery();
   const [showForm, setShowForm] = useState(false);
+
+  const convertToInvoice = (trpc.documents as any).convertToInvoice.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Facture créée avec succès !");
+      utils.documents.list.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  const handleConvertToInvoice = (quoteId: number) => {
+    if (confirm("Voulez-vous convertir ce devis en facture ?")) {
+      convertToInvoice.mutate({ quoteId });
+    }
+  };
 
   const getClient = (clientId: number) => {
     return clients?.find((c) => c.id === clientId);
@@ -160,6 +177,17 @@ export default function Documents() {
                         )}
                       </div>
                       <div className="flex gap-2">
+                        {doc.type === "quote" && doc.status === "accepted" && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleConvertToInvoice(doc.id)}
+                            disabled={convertToInvoice.isPending}
+                          >
+                            <ArrowRight className="h-4 w-4 mr-2" />
+                            Convertir en facture
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

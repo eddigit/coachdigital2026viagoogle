@@ -20,7 +20,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FileText, Plus, Eye, CheckCircle2, Clock, Archive } from "lucide-react";
+import { downloadRequirementPDF } from "@/lib/requirementsPdfGenerator";
+import { FileText, Plus, Eye, CheckCircle2, Clock, Archive, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Requirements() {
@@ -30,6 +31,39 @@ export default function Requirements() {
 
   const utils = trpc.useUtils();
   const { data: projects } = trpc.projects.list.useQuery();
+  const { data: clients } = trpc.clients.list.useQuery();
+  const { data: companyData } = trpc.company.get.useQuery();
+
+  const handleDownloadPDF = (requirement: any, project: any) => {
+    if (!companyData) {
+      toast.error("Informations entreprise manquantes");
+      return;
+    }
+
+    const client = clients?.find((c) => c.id === project.clientId);
+    const clientName = client
+      ? `${client.firstName} ${client.lastName}${client.company ? ` - ${client.company}` : ""}`
+      : "Client inconnu";
+
+    downloadRequirementPDF({
+      title: requirement.title,
+      version: requirement.version,
+      status: requirement.status,
+      projectName: project.name,
+      clientName,
+      description: requirement.description || undefined,
+      objectives: requirement.objectives || undefined,
+      scope: requirement.scope || undefined,
+      constraints: requirement.constraints || undefined,
+      deliverables: requirement.deliverables || undefined,
+      timeline: requirement.timeline || undefined,
+      budget: requirement.budget || undefined,
+      createdAt: new Date(requirement.createdAt),
+      companyName: companyData.name,
+    });
+
+    toast.success("PDF téléchargé avec succès");
+  };
 
   const createRequirement = trpc.requirements.create.useMutation({
     onSuccess: () => {
@@ -206,14 +240,24 @@ export default function Requirements() {
                             {req.budget && <span>Budget: {req.budget} €</span>}
                           </div>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRequirement(req)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Voir
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedRequirement(req)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Voir
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadPDF(req, project)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            PDF
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

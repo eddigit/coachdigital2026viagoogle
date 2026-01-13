@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import NewRequestForm from "@/components/NewRequestForm";
 import ClientCredentialsManager from "@/components/ClientCredentialsManager";
+import ClientDocuments from "@/components/ClientDocuments";
 import { trpc } from "@/lib/trpc";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
@@ -204,23 +205,7 @@ export default function ClientDashboard() {
           </Card>
 
           {/* Documents récents */}
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Documents récents</CardTitle>
-                <CardDescription>Vos devis et factures</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Aucun document disponible</p>
-                <p className="text-sm mt-2">
-                  Vos devis et factures apparaîtront ici
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <ClientDocuments clientUserId={clientUser.id} />
         </div>
 
         {/* CTA Section */}
