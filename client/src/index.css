@@ -98,6 +98,12 @@
     @apply border-border outline-ring/50;
   }
   
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -147,6 +153,27 @@
   ::selection {
     background: oklch(0.70 0.12 45 / 0.3);
     color: oklch(0.98 0.005 250);
+  }
+  
+  /* Fix mobile horizontal scroll */
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  /* Ensure all containers respect viewport width */
+  .container,
+  [class*="container"] {
+    max-width: 100%;
+  }
+  
+  /* Fix tables overflow on mobile */
+  @media (max-width: 768px) {
+    table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
   }
 }
 

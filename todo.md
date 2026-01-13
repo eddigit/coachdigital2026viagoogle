@@ -818,3 +818,12 @@
 - [x] Ajouter route /reviews dans App.tsx
 - [x] Ajouter lien "Avis Clients" dans le menu sidebar
 - [x] Afficher moyenne des notes et statistiques sur la page Reviews
+
+## Correction défilement horizontal mobile (TERMINÉ)
+- [x] Ajouter overflow-x-hidden sur html et body
+- [x] Ajouter overflow-x-hidden sur #root
+- [x] Ajouter max-width: 100vw sur les containers
+- [x] Corriger les tableaux avec overflow-x auto sur mobile
+- [x] Ajouter overflow-x-hidden sur SidebarInset et main
+- [x] Ajouter max-w-full sur header et main content
+- [x] Toutes les pages sont maintenant fixes sans débordement latéral
