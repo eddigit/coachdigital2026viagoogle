@@ -250,7 +250,8 @@ export const timeEntries = mysqlTable("timeEntries", {
   endTime: timestamp("endTime"),
   duration: int("duration"), // en minutes
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }),
-  status: mysqlEnum("status", ["planned", "in_progress", "completed"]).default("planned"),
+  priority: int("priority").default(3), // 1 (haute) à 5 (basse)
+  status: mysqlEnum("status", ["planned", "in_progress", "completed", "archived"]).default("planned"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

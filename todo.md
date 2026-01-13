@@ -407,3 +407,23 @@
 - [ ] Génération facture de temps basée sur heures trackées
 - [ ] Export fiche honoraire PDF par client/projet
 - [ ] Statistiques hebdomadaires et mensuelles
+
+## URGENT - Corrections Layout et Espace Client
+- [x] Corriger la page Today pour utiliser DashboardLayout
+- [x] Vérifier que TOUTES les pages admin utilisent DashboardLayout
+- [x] Vérifier que TOUTES les sous-pages utilisent DashboardLayout
+- [ ] Documenter l'URL de connexion client
+- [ ] Documenter le processus de création de comptes clients
+- [ ] Créer documentation complète espace client
+
+## Améliorations Page Aujourd'hui (TERMINÉ)
+- [x] Installer et configurer @hello-pangea/dnd pour drag & drop
+- [x] Implémenter drag & drop des cartes entre périodes
+- [x] Ajouter champ priority (1-5) dans schéma timeEntries
+- [x] Système de réorganisation par priorité (flèches haut/bas)
+- [x] Bouton checkmark pour marquer tâche terminée
+- [x] Archivage automatique des tâches terminées (status = 'archived')
+- [x] Section "Tâches en retard" en haut de page
+- [x] Affichage des tâches en retard depuis la table tasks
+- [x] Migration base de données pour nouveau champ priority
+- [x] Tri automatique des entrées par priorité

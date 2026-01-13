@@ -62,6 +62,7 @@ export const timeEntriesRouter = router({
         type: z.enum(["billable", "non_billable"]),
         duration: z.number().optional(),
         hourlyRate: z.string().optional(),
+        priority: z.number().min(1).max(5).default(3),
         status: z.enum(["planned", "in_progress", "completed"]).default("planned"),
       })
     )
@@ -109,7 +110,8 @@ export const timeEntriesRouter = router({
         type: z.enum(["billable", "non_billable"]).optional(),
         duration: z.number().optional(),
         hourlyRate: z.string().optional(),
-        status: z.enum(["planned", "in_progress", "completed"]).optional(),
+        priority: z.number().min(1).max(5).optional(),
+        status: z.enum(["planned", "in_progress", "completed", "archived"]).optional(),
         startTime: z.string().optional(),
         endTime: z.string().optional(),
       })

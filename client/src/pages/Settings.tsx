@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,8 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState("company");
   
   return (
-    <div className="container mx-auto py-6">
+    <DashboardLayout>
+      <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Paramètres</h1>
         <p className="text-muted-foreground">
@@ -45,7 +47,8 @@ export default function Settings() {
           <TemplatesSettings />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 
