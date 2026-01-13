@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, title, DATE(date) as date_formatted, period, type, userId FROM timeEntries WHERE userId = 1 LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute SELECT id, title, DATE(date) as date_formatted, period, type, userId FROM timeEntries WHERE userId = 1 LIMIT 10;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 81
+}

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO timeEntries (userId, title, description, date, period, type, status, createdAt, updatedAt) VALUES (1, 'Test Manual', 'Test description', '2026-01-13', 'morning', 'billable', 'planned', NOW(), NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute INSERT INTO timeEntries (userId, title, description, date, period, type, status, createdAt, updatedAt) VALUES (1, 'Test Manual', 'Test description', '2026-01-13', 'morning', 'billable', 'planned', NOW(), NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 69
+}

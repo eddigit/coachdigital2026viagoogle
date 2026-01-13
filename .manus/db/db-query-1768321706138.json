@@ -1,0 +1,29 @@
+{
+  "query": "SELECT * FROM timeEntries WHERE userId = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute SELECT * FROM timeEntries WHERE userId = 1;",
+  "rows": [
+    {
+      "id": "7",
+      "userId": "1",
+      "taskId": "NULL",
+      "projectId": "NULL",
+      "clientId": "NULL",
+      "title": "Test Manual",
+      "description": "Test description",
+      "date": "2026-01-13",
+      "period": "morning",
+      "type": "billable",
+      "startTime": "NULL",
+      "endTime": "NULL",
+      "duration": "NULL",
+      "hourlyRate": "NULL",
+      "status": "planned",
+      "createdAt": "2026-01-13 16:28:20",
+      "updatedAt": "2026-01-13 16:28:20"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\ttaskId\tprojectId\tclientId\ttitle\tdescription\tdate\tperiod\ttype\tstartTime\tendTime\tduration\thourlyRate\tstatus\tcreatedAt\tupdatedAt\n7\t1\tNULL\tNULL\tNULL\tTest Manual\tTest description\t2026-01-13\tmorning\tbillable\tNULL\tNULL\tNULL\tNULL\tplanned\t2026-01-13 16:28:20\t2026-01-13 16:28:20\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

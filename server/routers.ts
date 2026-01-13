@@ -17,6 +17,7 @@ import { projectVariablesRouter } from "./projectVariablesRouter";
 import { projectNotesRouter } from "./projectNotesRouter";
 import { notificationsRouter } from "./notificationsRouter";
 import { documentTemplatesRouter } from "./documentTemplatesRouter";
+import { timeEntriesRouter } from "./timeEntriesRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -97,6 +98,7 @@ export const appRouter = router({
   upload: uploadRouter,
   messages: messagesRouter,
   calendar: calendarRouter,
+  timeEntries: timeEntriesRouter,
   
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

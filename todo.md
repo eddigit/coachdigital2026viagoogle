@@ -375,3 +375,35 @@
 - [x] Prévisualisation en temps réel du rendu PDF
 - [ ] Intégrer les templates dans pdfGenerator.ts (TODO)
 - [x] Bouton "Réinitialiser aux valeurs par défaut"
+
+## Page Aujourd'hui - Gestion Journée
+- [x] Modifier table timeEntries (ajout userId, title, date, period, type, status)
+- [ ] Router tRPC pour CRUD timeEntries
+- [ ] Page Aujourd'hui avec 3 sections (Matinée 8h-12h, Après-midi 12h-18h, Soirée 18h-22h)
+- [ ] Drag & drop tâches entre périodes
+- [ ] Distinction tâches non facturables vs productions facturables
+- [ ] Chronomètre pour tracker le temps en temps réel
+- [ ] Fiche honoraire par client/projet avec cumul heures
+- [ ] Génération facture de temps basée sur heures trackées
+- [ ] Taux horaire configurable par client
+- [ ] Export PDF fiche honoraire
+- [ ] Statistiques temps passé (jour, semaine, mois)
+- [ ] Intégration avec calendrier existant
+
+## Page "Aujourd'hui" - Suivi du temps quotidien (EN COURS)
+- [x] Créer schéma timeEntries dans la base de données
+- [x] Router tRPC timeEntries avec CRUD complet
+- [x] Procédures startTimer et stopTimer pour chronomètre
+- [x] Procédure statsByClient pour statistiques
+- [x] Créer page Today avec 3 périodes (Matinée, Après-midi, Soirée)
+- [x] Cartes statistiques du jour (temps total, facturable, non facturable, taux)
+- [x] Formulaire création entrée temps avec client/projet
+- [x] Distinction facturable/non facturable
+- [x] Chronomètre démarrer/arrêter par entrée
+- [x] Édition et suppression entrées
+- [x] Ajouter route /today dans App.tsx
+- [x] Ajouter menu "Aujourd'hui" dans la sidebar
+- [ ] Corriger problème insertion Drizzle ORM (tests échouent)
+- [ ] Génération facture de temps basée sur heures trackées
+- [ ] Export fiche honoraire PDF par client/projet
+- [ ] Statistiques hebdomadaires et mensuelles

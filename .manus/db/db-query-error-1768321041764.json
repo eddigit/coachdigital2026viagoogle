@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE timeEntries \nADD COLUMN userId INT NOT NULL AFTER id,\nADD COLUMN title VARCHAR(255) NOT NULL AFTER clientId,\nADD COLUMN date DATE NOT NULL AFTER title,\nADD COLUMN period ENUM('morning', 'afternoon', 'evening') NOT NULL AFTER date,\nADD COLUMN type ENUM('billable', 'non_billable') NOT NULL AFTER period,\nADD COLUMN status ENUM('planned', 'in_progress', 'completed') DEFAULT 'planned' AFTER hourlyRate,\nMODIFY COLUMN startTime TIMESTAMP NULL,\nDROP COLUMN isBillable;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute ALTER TABLE timeEntries \nADD COLUMN userId INT NOT NULL AFTER id,\nADD COLUMN title VARCHAR(255) NOT NULL AFTER clientId,\nADD COLUMN date DATE NOT NULL AFTER title,\nADD COLUMN period ENUM('morning', 'afternoon', 'evening') NOT NULL AFTER date,\nADD COLUMN type ENUM('billable', 'non_billable') NOT NULL AFTER period,\nADD COLUMN status ENUM('planned', 'in_progress', 'completed') DEFAULT 'planned' AFTER hourlyRate,\nMODIFY COLUMN startTime TIMESTAMP NULL,\nDROP COLUMN isBillable;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'title' in 'timeEntries'"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE timeEntries ADD COLUMN userId INT NOT NULL AFTER id;\nALTER TABLE timeEntries ADD COLUMN title VARCHAR(255) NOT NULL AFTER clientId;\nALTER TABLE timeEntries ADD COLUMN date DATE NOT NULL AFTER description;\nALTER TABLE timeEntries ADD COLUMN period ENUM('morning', 'afternoon', 'evening') NOT NULL AFTER date;\nALTER TABLE timeEntries ADD COLUMN type ENUM('billable', 'non_billable') NOT NULL AFTER period;\nALTER TABLE timeEntries ADD COLUMN status ENUM('planned', 'in_progress', 'completed') DEFAULT 'planned' AFTER hourlyRate;\nALTER TABLE timeEntries MODIFY COLUMN startTime TIMESTAMP NULL;\nALTER TABLE timeEntries DROP COLUMN isBillable;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute ALTER TABLE timeEntries ADD COLUMN userId INT NOT NULL AFTER id;\nALTER TABLE timeEntries ADD COLUMN title VARCHAR(255) NOT NULL AFTER clientId;\nALTER TABLE timeEntries ADD COLUMN date DATE NOT NULL AFTER description;\nALTER TABLE timeEntries ADD COLUMN period ENUM('morning', 'afternoon', 'evening') NOT NULL AFTER date;\nALTER TABLE timeEntries ADD COLUMN type ENUM('billable', 'non_billable') NOT NULL AFTER period;\nALTER TABLE timeEntries ADD COLUMN status ENUM('planned', 'in_progress', 'completed') DEFAULT 'planned' AFTER hourlyRate;\nALTER TABLE timeEntries MODIFY COLUMN startTime TIMESTAMP NULL;\nALTER TABLE timeEntries DROP COLUMN isBillable;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 3156
+}

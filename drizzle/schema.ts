@@ -237,15 +237,20 @@ export type InsertTask = typeof tasks.$inferInsert;
 
 export const timeEntries = mysqlTable("timeEntries", {
   id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
   taskId: int("taskId"),
   projectId: int("projectId"),
   clientId: int("clientId"),
+  title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
-  startTime: timestamp("startTime").notNull(),
+  date: date("date").notNull(),
+  period: mysqlEnum("period", ["morning", "afternoon", "evening"]).notNull(),
+  type: mysqlEnum("type", ["billable", "non_billable"]).notNull(),
+  startTime: timestamp("startTime"),
   endTime: timestamp("endTime"),
   duration: int("duration"), // en minutes
-  isBillable: boolean("isBillable").default(true),
   hourlyRate: decimal("hourlyRate", { precision: 10, scale: 2 }),
+  status: mysqlEnum("status", ["planned", "in_progress", "completed"]).default("planned"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
