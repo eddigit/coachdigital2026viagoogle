@@ -60,6 +60,29 @@ export default function Clients() {
     onError: () => toast.error("Erreur lors de la suppression"),
   });
 
+  const generateInvitation = trpc.clientAuth.generateInvitation.useMutation({
+    onSuccess: (data) => {
+      toast.success("Invitation envoyée avec succès");
+      // Copier le lien dans le presse-papier
+      navigator.clipboard.writeText(data.invitationUrl);
+      toast.info("Lien d'invitation copié dans le presse-papier");
+    },
+    onError: () => toast.error("Erreur lors de l'envoi de l'invitation"),
+  });
+
+  const handleInviteClient = (client: any) => {
+    if (!client.email) {
+      toast.error("Le client n'a pas d'email");
+      return;
+    }
+    if (confirm(`Envoyer une invitation à ${client.email} ?`)) {
+      generateInvitation.mutate({
+        clientId: client.id,
+        email: client.email,
+      });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -342,6 +365,17 @@ export default function Clients() {
                       <Pencil className="h-3 w-3 mr-1" />
                       Modifier
                     </Button>
+                    {client.email && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleInviteClient(client)}
+                      >
+                        <Mail className="h-3 w-3 mr-1" />
+                        Inviter
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="destructive"

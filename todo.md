@@ -192,3 +192,29 @@
 - [x] Modification/suppression credentials
 - [ ] Notification email au coach à chaque ajout
 - [x] Intégrer dans ClientDashboard
+
+
+## Système Cahier des Charges (TERMINÉ)
+- [x] Créer templates de cahier des charges par type (site web, app, coaching IA)
+- [x] Page admin Requirements avec formulaire structuré
+- [x] Versioning automatique des modifications
+- [ ] Export PDF du cahier des charges validé
+- [x] Intégrer dans la sidebar navigation
+
+## Génération Documents PDF (TERMINÉ)
+- [x] Formulaire création devis avec lignes de facturation
+- [x] Formulaire création factures avec lignes
+- [x] Calculs automatiques HT/TVA/TTC en temps réel
+- [x] Numérotation automatique (DEV-2025-001, FACT-2025-001)
+- [x] Génération PDF avec logo orange et infos entreprise
+- [x] Téléchargement PDF depuis admin
+- [ ] Téléchargement PDF depuis client dashboard
+- [ ] Conversion devis → facture
+
+## Système Invitation Client (TERMINÉ)
+- [x] Bouton "Inviter" dans page admin Clients
+- [x] Génération token d'invitation sécurisé
+- [x] Envoi notification d'invitation avec lien
+- [x] Page acceptation invitation (/client/invitation/:token)
+- [x] Création compte client avec mot de passe
+- [x] Liaison automatique client → clientUser

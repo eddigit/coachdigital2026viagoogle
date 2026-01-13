@@ -386,12 +386,98 @@ export async function getDocumentsByClientId(clientId: number) {
     .orderBy(desc(documents.date));
 }
 
-export async function createDocument(data: InsertDocument) {
+export async function createDocument(data: Omit<InsertDocument, 'number' | 'totalHt' | 'totalTva' | 'totalTtc'> & { lines: Array<{
+  description: string;
+  quantity: string;
+  unit: string;
+  unitPriceHt: string;
+  tvaRate: string;
+}> }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(documents).values(data);
-  return Number(result[0].insertId);
+  // Calculer les totaux
+  let totalHt = 0;
+  let totalTva = 0;
+  
+  for (const line of data.lines) {
+    const quantity = parseFloat(line.quantity);
+    const unitPrice = parseFloat(line.unitPriceHt);
+    const tvaRate = parseFloat(line.tvaRate);
+    
+    const lineTotal = quantity * unitPrice;
+    totalHt += lineTotal;
+    totalTva += lineTotal * (tvaRate / 100);
+  }
+  
+  const totalTtc = totalHt + totalTva;
+  
+  // Générer le numéro de document
+  const year = new Date().getFullYear();
+  const prefix = data.type === "quote" ? "DEV" : data.type === "invoice" ? "FACT" : "AV";
+  
+  const existingDocs = await db
+    .select()
+    .from(documents)
+    .where(like(documents.number, `${prefix}-${year}-%`));
+  
+  const nextNum = existingDocs.length + 1;
+  const number = `${prefix}-${year}-${String(nextNum).padStart(3, "0")}`;
+  
+  // Créer le document
+  const { lines, ...documentData } = data;
+  const result = await db.insert(documents).values({
+    ...documentData,
+    number,
+    totalHt: totalHt.toFixed(2),
+    totalTva: totalTva.toFixed(2),
+    totalTtc: totalTtc.toFixed(2),
+  });
+  
+  const documentId = Number(result[0].insertId);
+  
+  // Créer les lignes
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const quantity = parseFloat(line.quantity);
+    const unitPrice = parseFloat(line.unitPriceHt);
+    const tvaRate = parseFloat(line.tvaRate);
+    
+    const lineTotalHt = quantity * unitPrice;
+    const lineTotalTva = lineTotalHt * (tvaRate / 100);
+    const lineTotalTtc = lineTotalHt + lineTotalTva;
+    
+    await db.insert(documentLines).values({
+      documentId,
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPriceHt: line.unitPriceHt,
+      tvaRate: line.tvaRate,
+      totalHt: lineTotalHt.toFixed(2),
+      totalTva: lineTotalTva.toFixed(2),
+      totalTtc: lineTotalTtc.toFixed(2),
+      sortOrder: i + 1,
+    });
+  }
+  
+  return documentId;
+}
+
+export async function getNextDocumentNumber(type: "quote" | "invoice" | "credit_note") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const year = new Date().getFullYear();
+  const prefix = type === "quote" ? "DEV" : type === "invoice" ? "FACT" : "AV";
+  
+  const existingDocs = await db
+    .select()
+    .from(documents)
+    .where(like(documents.number, `${prefix}-${year}-%`));
+  
+  const nextNum = existingDocs.length + 1;
+  return `${prefix}-${year}-${String(nextNum).padStart(3, "0")}`;
 }
 
 export async function updateDocument(id: number, data: Partial<InsertDocument>) {

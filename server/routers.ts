@@ -286,6 +286,60 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await db.getDocumentsByClientId(input.clientId);
       }),
+    
+    create: protectedProcedure
+      .input(z.object({
+        clientId: z.number(),
+        projectId: z.number().optional().nullable(),
+        type: z.enum(["quote", "invoice", "credit_note"]),
+        date: z.date(),
+        dueDate: z.date().optional().nullable(),
+        validityDate: z.date().optional().nullable(),
+        subject: z.string().optional().nullable(),
+        introduction: z.string().optional().nullable(),
+        conclusion: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        paymentTerms: z.number().default(30),
+        paymentMethod: z.enum(["bank_transfer", "check", "card", "cash", "other"]).optional().nullable(),
+        isAcompteRequired: z.boolean().default(false),
+        acomptePercentage: z.string().optional().nullable(),
+        lines: z.array(z.object({
+          description: z.string(),
+          quantity: z.string(),
+          unit: z.string().default("unité"),
+          unitPriceHt: z.string(),
+          tvaRate: z.string().default("20.00"),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createDocument(input);
+      }),
+    
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["draft", "sent", "accepted", "rejected", "paid", "cancelled"]).optional(),
+        subject: z.string().optional().nullable(),
+        introduction: z.string().optional().nullable(),
+        conclusion: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        pdfUrl: z.string().optional().nullable(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.updateDocument(input.id, input);
+      }),
+    
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        return await db.deleteDocument(input.id);
+      }),
+    
+    getNextNumber: protectedProcedure
+      .input(z.object({ type: z.enum(["quote", "invoice", "credit_note"]) }))
+      .query(async ({ input }) => {
+        return await db.getNextDocumentNumber(input.type);
+      }),
   }),
 
   // ==========================================================================
@@ -368,7 +422,16 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const token = await clientAuth.generateInvitationToken(input.clientId, input.email);
-        return { success: true, token, invitationUrl: `/client/invitation/${token}` };
+        const invitationUrl = `${process.env.VITE_APP_URL || 'http://localhost:3000'}/client/invitation/${token}`;
+        
+        // Envoyer l'email d'invitation
+        const { notifyOwner } = await import("./_core/notification");
+        await notifyOwner({
+          title: "Nouvelle invitation client envoyée",
+          content: `Une invitation a été envoyée à ${input.email}.\n\nLien d'invitation: ${invitationUrl}`,
+        });
+        
+        return { success: true, token, invitationUrl };
       }),
     
     acceptInvitation: publicProcedure
