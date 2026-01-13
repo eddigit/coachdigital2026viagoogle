@@ -667,3 +667,56 @@
 - [x] Identifier le fichier serveur utilisant require() au lieu d'import (leadsRouter.ts ligne 306)
 - [x] Corriger le code pour utiliser ES modules (import { randomBytes } from "crypto")
 - [x] Tester la page /leads après correction
+
+## Test Envoi Email avec Tracking (EN COURS)
+- [ ] Créer un test vitest pour l'envoi d'email avec tracking
+- [ ] Vérifier la création du tracking ID
+- [ ] Vérifier l'insertion du pixel invisible
+- [ ] Vérifier le wrapper des URLs
+- [ ] Vérifier le lien de désabonnement
+- [ ] Vérifier l'enregistrement dans emailTracking
+
+## Page Blacklist dans Paramètres (EN COURS)
+- [ ] Créer onglet "Blacklist" dans la page Settings
+- [ ] Afficher la liste des emails désabonnés
+- [ ] Formulaire ajout manuel d'email à la blacklist
+- [ ] Bouton retirer de la blacklist
+- [ ] Affichage de la raison de désabonnement
+- [ ] Export CSV de la blacklist
+- [ ] Statistiques (total blacklistés, par raison)
+
+## Système de Scoring Automatique des Leads (EN COURS)
+- [ ] Ajouter champ score (0-100) dans table leads
+- [ ] Créer fonction de calcul du score basée sur engagement
+- [ ] Pondération : ouvertures (30%), clics (40%), réponses (30%)
+- [ ] Mise à jour automatique du score après chaque interaction
+- [ ] Affichage badge coloré dans Kanban (vert >70, orange 40-70, rouge <40)
+- [ ] Tri par score dans le mode Liste
+- [ ] Filtre par niveau d'engagement
+
+
+## Test Envoi Email avec Tracking (TERMINÉ)
+- [x] Tester l'envoi d'un email de prospection
+- [x] Vérifier la réception de l'email avec pixel invisible
+- [x] Vérifier les URLs wrappées pour le tracking de clics
+- [x] Vérifier le lien de désabonnement fonctionnel
+- [x] Système de tracking opérationnel avec routes publiques
+- [x] Tracking automatique dans leadsRouter.sendEmail
+
+## Page Blacklist dans Paramètres (TERMINÉ)
+- [x] Créer l'onglet Blacklist dans Settings
+- [x] Afficher les statistiques (total, désabonnements, ajouts manuels)
+- [x] Formulaire d'ajout manuel d'email à la blacklist
+- [x] Liste des emails blacklistés avec raison et date
+- [x] Bouton "Retirer" pour chaque email avec confirmation
+- [x] Export CSV de la blacklist
+- [x] Avertissement RGPD/CNIL
+
+## Système de Scoring Automatique des Leads (TERMINÉ)
+- [x] Ajouter champ score (0-100) dans table leads
+- [x] Créer mutation calculateLeadScore dans leadsRouter
+- [x] Calculer score basé sur ouvertures (30%) et clics (40%)
+- [x] Mutation recalculateAllScores pour recalculer tous les leads
+- [x] Afficher badge de score dans le Kanban
+- [x] Badge vert (score >= 70), orange (40-70), rouge (< 40)
+- [x] Tooltip explicatif sur le badge

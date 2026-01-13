@@ -717,4 +717,92 @@ export const emailTemplatesRouter = router({
 
       return result[0] || null;
     }),
+  
+  // Calculer le score d'engagement d'un lead
+  calculateLeadScore: protectedProcedure
+    .input(z.object({ leadId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      // Récupérer tous les trackings du lead
+      const trackings = await db
+        .select()
+        .from(emailTracking)
+        .where(eq(emailTracking.leadId, input.leadId));
+      
+      if (trackings.length === 0) {
+        // Aucun email envoyé, score = 0
+        await db
+          .update(leads)
+          .set({ score: 0 })
+          .where(eq(leads.id, input.leadId));
+        return { score: 0 };
+      }
+      
+      // Calculer le score basé sur l'engagement
+      // Pondération: ouvertures (30%), clics (40%), réponses (30%)
+      const totalEmails = trackings.length;
+      const openedEmails = trackings.filter(t => t.opened).length;
+      const clickedEmails = trackings.filter(t => t.clicked).length;
+      
+      const openRate = (openedEmails / totalEmails) * 100;
+      const clickRate = (clickedEmails / totalEmails) * 100;
+      
+      // Score = (openRate * 0.3) + (clickRate * 0.4) + (réponses * 0.3)
+      // Pour l'instant, réponses = 0 (non implémenté)
+      const score = Math.round((openRate * 0.3) + (clickRate * 0.4));
+      
+      // Mettre à jour le score dans la base
+      await db
+        .update(leads)
+        .set({ score })
+        .where(eq(leads.id, input.leadId));
+      
+      return { score };
+    }),
+  
+  // Recalculer tous les scores
+  recalculateAllScores: protectedProcedure
+    .mutation(async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      
+      const allLeads = await db.select().from(leads);
+      let updated = 0;
+      
+      for (const lead of allLeads) {
+        // Récupérer tous les trackings du lead
+        const trackings = await db
+          .select()
+          .from(emailTracking)
+          .where(eq(emailTracking.leadId, lead.id));
+        
+        if (trackings.length === 0) {
+          await db
+            .update(leads)
+            .set({ score: 0 })
+            .where(eq(leads.id, lead.id));
+          continue;
+        }
+        
+        const totalEmails = trackings.length;
+        const openedEmails = trackings.filter(t => t.opened).length;
+        const clickedEmails = trackings.filter(t => t.clicked).length;
+        
+        const openRate = (openedEmails / totalEmails) * 100;
+        const clickRate = (clickedEmails / totalEmails) * 100;
+        
+        const score = Math.round((openRate * 0.3) + (clickRate * 0.4));
+        
+        await db
+          .update(leads)
+          .set({ score })
+          .where(eq(leads.id, lead.id));
+        
+        updated++;
+      }
+      
+      return { updated };
+    }),
 });

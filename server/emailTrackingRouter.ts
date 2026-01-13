@@ -204,6 +204,17 @@ export const emailTrackingRouter = router({
       .from(emailBlacklist)
       .orderBy(desc(emailBlacklist.createdAt));
   }),
+  
+  // Alias pour getBlacklist
+  getBlacklist: protectedProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+
+    return await db
+      .select()
+      .from(emailBlacklist)
+      .orderBy(desc(emailBlacklist.createdAt));
+  }),
 
   // Vérifier si un email est blacklisté
   isBlacklisted: protectedProcedure

@@ -206,6 +206,8 @@ export const leads = mysqlTable("leads", {
   nextFollowUpDate: date("nextFollowUpDate"),
   // Avatar
   avatarUrl: varchar("avatarUrl", { length: 500 }),
+  // Score d'engagement (0-100)
+  score: int("score").default(0).notNull(),
   // Conversion
   convertedToClientId: int("convertedToClientId"),
   convertedAt: timestamp("convertedAt"),

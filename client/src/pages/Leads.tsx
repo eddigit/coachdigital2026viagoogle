@@ -549,12 +549,31 @@ function KanbanView({
                           }`}
                         >
                           <CardHeader className="pb-3">
-                            <CardTitle className="text-sm">
-                              {lead.firstName} {lead.lastName}
-                            </CardTitle>
-                            {lead.company && (
-                              <CardDescription className="text-xs">{lead.company}</CardDescription>
-                            )}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <CardTitle className="text-sm">
+                                  {lead.firstName} {lead.lastName}
+                                </CardTitle>
+                                {lead.company && (
+                                  <CardDescription className="text-xs">{lead.company}</CardDescription>
+                                )}
+                              </div>
+                              {/* Badge de score d'engagement */}
+                              {lead.score !== undefined && lead.score !== null && (
+                                <div
+                                  className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                    lead.score >= 70
+                                      ? "bg-green-100 text-green-700"
+                                      : lead.score >= 40
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-red-100 text-red-700"
+                                  }`}
+                                  title="Score d'engagement basé sur les ouvertures et clics d'emails"
+                                >
+                                  {lead.score}
+                                </div>
+                              )}
+                            </div>
                           </CardHeader>
                           <CardContent className="space-y-2 text-xs">
                             {lead.email && (

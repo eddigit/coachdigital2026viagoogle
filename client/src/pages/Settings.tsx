@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import ImageUpload from "@/components/ImageUpload";
-import { Building2, FileText, Palette, Mail } from "lucide-react";
+import { Building2, FileText, Palette, Mail, Ban } from "lucide-react";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("company");
@@ -26,7 +26,7 @@ export default function Settings() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="company">
             <Building2 className="h-4 w-4 mr-2" />
             Entreprise
@@ -38,6 +38,10 @@ export default function Settings() {
           <TabsTrigger value="email">
             <Mail className="h-4 w-4 mr-2" />
             Configuration Email
+          </TabsTrigger>
+          <TabsTrigger value="blacklist">
+            <Ban className="h-4 w-4 mr-2" />
+            Blacklist
           </TabsTrigger>
         </TabsList>
         
@@ -54,6 +58,11 @@ export default function Settings() {
         {/* Onglet Configuration Email */}
         <TabsContent value="email">
           <EmailSettings />
+        </TabsContent>
+        
+        {/* Onglet Blacklist */}
+        <TabsContent value="blacklist">
+          <BlacklistSettings />
         </TabsContent>
       </Tabs>
       </div>
@@ -813,6 +822,185 @@ function EmailSettings() {
           <p className="text-yellow-900">
             <strong>🔒 Sécurité :</strong> Les credentials SMTP seront stockés en tant que variables d'environnement sécurisées. 
             Ne partagez jamais votre mot de passe d'application Gmail.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// Composant pour la gestion de la blacklist
+function BlacklistSettings() {
+  const [newEmail, setNewEmail] = useState("");
+  const [reason, setReason] = useState("");
+  
+  const { data: blacklist = [], refetch } = trpc.emailTracking.getBlacklist.useQuery();
+  const addToBlacklistMutation = trpc.emailTracking.addToBlacklist.useMutation();
+  const removeFromBlacklistMutation = trpc.emailTracking.removeFromBlacklist.useMutation();
+  
+  const handleAddToBlacklist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail) {
+      toast.error("Veuillez entrer un email");
+      return;
+    }
+    
+    try {
+      await addToBlacklistMutation.mutateAsync({
+        email: newEmail,
+        reason: reason || "Ajout manuel par l'administrateur"
+      });
+      toast.success("Email ajouté à la blacklist");
+      setNewEmail("");
+      setReason("");
+      refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'ajout");
+    }
+  };
+  
+  const handleRemoveFromBlacklist = async (email: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir retirer ${email} de la blacklist ?`)) {
+      return;
+    }
+    
+    try {
+      await removeFromBlacklistMutation.mutateAsync({ email });
+      toast.success("Email retiré de la blacklist");
+      refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de la suppression");
+    }
+  };
+  
+  const handleExportCSV = () => {
+    const csv = [
+      ["Email", "Raison", "Date d'ajout"],
+      ...blacklist.map((item: any) => [
+        item.email,
+        item.reason || "",
+        new Date(item.createdAt).toLocaleDateString("fr-FR")
+      ])
+    ].map(row => row.join(",")).join("\n");
+    
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `blacklist-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    toast.success("Export CSV téléchargé");
+  };
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gestion de la Blacklist</CardTitle>
+        <CardDescription>
+          Gérez les emails désabonnés et ajoutez manuellement des adresses à la blacklist
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Blacklistés</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{blacklist.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Désabonnements</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {blacklist.filter((item: any) => item.reason?.includes("désabonné")).length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Ajouts Manuels</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {blacklist.filter((item: any) => item.reason?.includes("manuel")).length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Formulaire d'ajout */}
+        <form onSubmit={handleAddToBlacklist} className="space-y-4">
+          <div>
+            <Label htmlFor="newEmail">Ajouter un email à la blacklist</Label>
+            <Input
+              id="newEmail"
+              type="email"
+              placeholder="email@exemple.com"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="reason">Raison (optionnel)</Label>
+            <Input
+              id="reason"
+              placeholder="Spam, demande client, etc."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={addToBlacklistMutation.isPending}>
+              {addToBlacklistMutation.isPending ? "Ajout..." : "Ajouter à la blacklist"}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleExportCSV}>
+              Exporter CSV
+            </Button>
+          </div>
+        </form>
+        
+        {/* Liste des emails blacklistés */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Emails Blacklistés</h3>
+          {blacklist.length === 0 ? (
+            <p className="text-muted-foreground">Aucun email dans la blacklist</p>
+          ) : (
+            <div className="space-y-2">
+              {blacklist.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="font-medium">{item.email}</p>
+                    {item.reason && (
+                      <p className="text-sm text-muted-foreground">{item.reason}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Ajouté le {new Date(item.createdAt).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRemoveFromBlacklist(item.email)}
+                    disabled={removeFromBlacklistMutation.isPending}
+                  >
+                    Retirer
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* Avertissement RGPD */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+          <p className="text-yellow-900">
+            <strong>⚖️ Conformité RGPD :</strong> Les emails blacklistés ne recevront plus aucun email de prospection. 
+            Conservez cette liste pour prouver le respect des désabonnements en cas de contrôle CNIL.
           </p>
         </div>
       </CardContent>
