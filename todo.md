@@ -58,3 +58,27 @@
 - [ ] Calculs automatiques (HT, TVA, TTC)
 - [ ] Espace client (portail séparé)
 - [ ] Navigation sidebar complète
+
+
+## Nouvelles tâches urgentes (demande utilisateur)
+- [x] Créer données de démonstration (clients)
+- [x] Créer données de démonstration (projets)
+- [x] Créer données de démonstration (tâches)
+- [ ] Créer données de démonstration (documents)
+- [ ] Créer données de démonstration (infos entreprise)
+- [ ] Formulaire création documents complet
+- [ ] Calculs automatiques HT/TVA/TTC
+- [ ] Génération PDF effective
+- [ ] Espace client sécurisé
+
+
+## CRITIQUE - Problèmes à corriger immédiatement
+- [x] Corriger DashboardLayout - sidebar ne s'affiche pas
+- [x] Ajouter menu de navigation complet
+- [ ] Implémenter toutes les fonctionnalités du cahier des charges manquantes
+- [ ] Créer l'espace client complet
+- [ ] Ajouter système de messagerie
+- [ ] Ajouter calendrier intégré
+- [ ] Ajouter coffre-fort documents
+- [ ] Ajouter suivi du temps intégré
+- [ ] Ajouter tableau de bord analytique

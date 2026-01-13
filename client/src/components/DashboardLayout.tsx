@@ -21,15 +21,23 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Users, label: "Clients", path: "/clients" },
+  { icon: Briefcase, label: "Projets", path: "/projects" },
+  { icon: CheckSquare, label: "T\u00e2ches", path: "/tasks" },
+  { icon: FileText, label: "Documents", path: "/documents" },
+  { icon: Calendar, label: "Calendrier", path: "/calendar" },
+  { icon: Clock, label: "Suivi Temps", path: "/time-tracking" },
+  { icon: MessageSquare, label: "Messages", path: "/messages" },
+  { icon: Lock, label: "Coffre-fort", path: "/vault" },
+  { icon: Settings, label: "Param\u00e8tres", path: "/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -10,6 +10,10 @@ import Projects from "./pages/Projects";
 import Tasks from "./pages/Tasks";
 import Documents from "./pages/Documents";
 import Settings from "./pages/Settings";
+import Calendar from "./pages/Calendar";
+import TimeTracking from "./pages/TimeTracking";
+import Messages from "./pages/Messages";
+import Vault from "./pages/Vault";
 
 function Router() {
   return (
@@ -20,6 +24,10 @@ function Router() {
       <Route path="/tasks" component={Tasks} />
       <Route path="/documents" component={Documents} />
       <Route path="/settings" component={Settings} />
+      <Route path="/calendar" component={Calendar} />
+      <Route path="/time-tracking" component={TimeTracking} />
+      <Route path="/messages" component={Messages} />
+      <Route path="/vault" component={Vault} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
