@@ -589,7 +589,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const token = await clientAuth.generateInvitationToken(input.clientId, input.email);
-        const invitationUrl = `${process.env.VITE_APP_URL || 'http://localhost:3000'}/client/invitation/${token}`;
+        const invitationUrl = `${process.env.VITE_APP_URL || 'https://coachdigital.biz'}/client/invitation/${token}`;
         
         // Envoyer l'email d'invitation
         const { sendEmail } = await import("./emailService");

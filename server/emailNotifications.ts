@@ -95,6 +95,6 @@ Envoyez la facture au client par email.
  */
 export function getClientLoginUrl(): string {
   // En production, utiliser l'URL publique du site
-  const baseUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+  const baseUrl = process.env.VITE_APP_URL || "https://coachdigital.biz";
   return `${baseUrl}/client/login`;
 }

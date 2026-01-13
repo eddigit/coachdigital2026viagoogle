@@ -306,7 +306,7 @@ export const leadsRouter = router({
       // Créer un tracking ID
       const trackingId = randomBytes(32).toString('hex');
       const unsubscribeToken = Buffer.from(lead.email).toString('base64');
-      const baseUrl = process.env.VITE_FRONTEND_FORGE_API_URL || 'http://localhost:3000';
+      const baseUrl = process.env.VITE_APP_URL || 'https://coachdigital.biz';
 
       // Ajouter le pixel de tracking et le lien de désabonnement
       const trackingPixel = `<img src="${baseUrl}/api/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;

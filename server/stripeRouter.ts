@@ -41,7 +41,7 @@ export const stripeRouter = router({
       const lines = await db.getDocumentLinesByDocumentId(input.invoiceId);
 
       // Créer la session Checkout Stripe
-      const origin = ctx.req?.headers.origin || "http://localhost:3000";
+      const origin = process.env.VITE_APP_URL || "https://coachdigital.biz";
       
       const session = await stripe.checkout.sessions.create({
         mode: "payment",

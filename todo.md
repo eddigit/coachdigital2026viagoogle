@@ -759,3 +759,10 @@
 - [x] Remplacer notifyOwner par sendEmail dans routers.ts (demandes clients)
 - [x] Remplacer notifyOwner par sendEmail dans stripeWebhook.ts (paiements)
 - [x] Forcer l'utilisation exclusive du SMTP Gmail pour tous les emails
+
+## Mise à jour URLs domaine final coachdigital.biz (TERMINÉ)
+- [x] Remplacer les URLs dans routers.ts (invitations clients)
+- [x] Remplacer les URLs dans emailNotifications.ts (liens espace client)
+- [x] Remplacer les URLs dans leadsRouter.ts (tracking emails)
+- [x] Remplacer les URLs dans stripeRouter.ts (redirections paiement)
+- [x] Toutes les URLs par défaut pointent maintenant vers https://coachdigital.biz
