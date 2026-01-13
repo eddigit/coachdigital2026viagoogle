@@ -798,3 +798,8 @@
 - [x] Désactiver l'enregistrement du Service Worker en développement (HTTP)
 - [x] Activer uniquement en production (HTTPS ou localhost)
 - [x] Ajouter log informatif quand Service Worker est désactivé
+
+## Correction liens localhost dans emails d'invitation (TERMINÉ)
+- [x] Configurer VITE_APP_URL avec https://coachdigital.biz
+- [x] Variable d'environnement mise à jour côté serveur
+- [x] Les emails d'invitation utilisent maintenant coachdigital.biz
