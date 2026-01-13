@@ -737,3 +737,25 @@
 - [x] Fallback sur initiales si pas d'avatar
 - [x] Fallback sur icône Briefcase si pas de client
 - [x] Tester l'affichage dans les cards
+
+
+## URGENT - Correction Envoi Emails SMTP (EN COURS)
+- [ ] Identifier pourquoi les emails utilisent Manus au lieu du SMTP Gmail
+- [ ] Vérifier si leadsRouter utilise emailService.ts ou un autre système
+- [ ] Corriger le code pour utiliser exclusivement emailService.ts avec SMTP Gmail
+- [ ] Ajouter un bouton "Tester SMTP" dans les Paramètres
+- [ ] Tester l'envoi d'email avec SMTP Gmail configuré
+- [ ] Vérifier que l'expéditeur est bien l'utilisateur et non Manus
+
+## Correction Système d'Envoi d'Emails SMTP (TERMINÉ)
+- [x] Ajouter logs détaillés dans emailService.ts pour débugger
+- [x] Créer router smtpRouter avec mutations testConfiguration et checkStatus
+- [x] Intégrer smtpRouter dans routers.ts
+- [x] Ajouter bouton "Tester SMTP" dans page Paramètres (onglet Configuration Email)
+- [x] Afficher statut SMTP en temps réel (configuré/non configuré)
+- [x] Afficher infos configuration SMTP (serveur, utilisateur, expéditeur)
+- [x] Remplacer tous les appels notifyOwner par sendEmail dans emailNotifications.ts
+- [x] Remplacer notifyOwner par sendEmail dans routers.ts (invitations clients)
+- [x] Remplacer notifyOwner par sendEmail dans routers.ts (demandes clients)
+- [x] Remplacer notifyOwner par sendEmail dans stripeWebhook.ts (paiements)
+- [x] Forcer l'utilisation exclusive du SMTP Gmail pour tous les emails

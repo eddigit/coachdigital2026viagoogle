@@ -1,4 +1,4 @@
-import { notifyOwner } from "./_core/notification";
+import { sendEmail } from "./emailService";
 
 interface DocumentEmailData {
   clientEmail: string;
@@ -36,9 +36,12 @@ Envoyez le ${typeLabel.toLowerCase()} au client par email avec le PDF en pièce 
   `.trim();
 
   try {
-    const success = await notifyOwner({
-      title: `${typeLabel} ${data.documentNumber} créé pour ${data.clientName}`,
-      content,
+    const ownerEmail = process.env.SMTP_USER || "coachdigitalparis@gmail.com";
+    const success = await sendEmail({
+      to: ownerEmail,
+      subject: `${typeLabel} ${data.documentNumber} créé pour ${data.clientName}`,
+      html: `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${content}</div>`,
+      text: content,
     });
     
     return success;
@@ -72,9 +75,12 @@ Envoyez la facture au client par email.
   `.trim();
 
   try {
-    const success = await notifyOwner({
-      title: `Devis ${data.quoteNumber} converti en facture ${data.invoiceNumber}`,
-      content,
+    const ownerEmail = process.env.SMTP_USER || "coachdigitalparis@gmail.com";
+    const success = await sendEmail({
+      to: ownerEmail,
+      subject: `Devis ${data.quoteNumber} converti en facture ${data.invoiceNumber}`,
+      html: `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${content}</div>`,
+      text: content,
     });
     
     return success;

@@ -132,17 +132,22 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // Optionnel : envoyer une notification au propriétaire
     const client = await db.getClientById(invoice.clientId);
     if (client) {
-      const { notifyOwner } = await import("./_core/notification");
-      await notifyOwner({
-        title: `💰 Paiement reçu - Facture ${invoice.number}`,
-        content: `
-**Client:** ${client.firstName} ${client.lastName}
-**Facture:** ${invoice.number}
-**Montant:** ${parseFloat(invoice.totalTtc || "0").toFixed(2)} €
-**Date:** ${new Date().toLocaleDateString("fr-FR")}
-
-Le paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.
-        `.trim(),
+      const { sendEmail } = await import("./emailService");
+      const ownerEmail = process.env.SMTP_USER || "coachdigitalparis@gmail.com";
+      await sendEmail({
+        to: ownerEmail,
+        subject: `💰 Paiement reçu - Facture ${invoice.number}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #E67E50;">💰 Paiement reçu</h2>
+            <p><strong>Client:</strong> ${client.firstName} ${client.lastName}</p>
+            <p><strong>Facture:</strong> ${invoice.number}</p>
+            <p><strong>Montant:</strong> ${parseFloat(invoice.totalTtc || "0").toFixed(2)} €</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString("fr-FR")}</p>
+            <p>Le paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.</p>
+          </div>
+        `,
+        text: `💰 Paiement reçu\n\nClient: ${client.firstName} ${client.lastName}\nFacture: ${invoice.number}\nMontant: ${parseFloat(invoice.totalTtc || "0").toFixed(2)} €\nDate: ${new Date().toLocaleDateString("fr-FR")}\n\nLe paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.`,
       });
     }
   } catch (error: any) {

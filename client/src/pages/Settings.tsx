@@ -676,6 +676,9 @@ function EmailSettings() {
   const [smtpFrom, setSmtpFrom] = useState("");
   const [testEmail, setTestEmail] = useState("");
   const [isTesting, setIsTesting] = useState(false);
+  
+  const { data: smtpStatus } = trpc.smtp.checkStatus.useQuery();
+  const testSmtpMutation = trpc.smtp.testConfiguration.useMutation();
 
   return (
     <Card>
@@ -689,6 +692,39 @@ function EmailSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Statut de la configuration SMTP */}
+        {smtpStatus && (
+          <div className={`border rounded-lg p-4 ${
+            smtpStatus.isReady 
+              ? "bg-green-50 border-green-200" 
+              : "bg-yellow-50 border-yellow-200"
+          }`}>
+            <h4 className={`font-semibold mb-2 ${
+              smtpStatus.isReady ? "text-green-900" : "text-yellow-900"
+            }`}>
+              {smtpStatus.isReady ? "✅ SMTP Configuré et Opérationnel" : "⚠️ SMTP Non Configuré"}
+            </h4>
+            <div className={`text-sm ${
+              smtpStatus.isReady ? "text-green-800" : "text-yellow-800"
+            }`}>
+              {smtpStatus.config.host && (
+                <p><strong>Serveur:</strong> {smtpStatus.config.host}:{smtpStatus.config.port}</p>
+              )}
+              {smtpStatus.config.user && (
+                <p><strong>Utilisateur:</strong> {smtpStatus.config.user}</p>
+              )}
+              {smtpStatus.config.from && (
+                <p><strong>Expéditeur:</strong> {smtpStatus.config.from}</p>
+              )}
+              {!smtpStatus.isReady && (
+                <p className="mt-2">
+                  Veuillez configurer les variables d'environnement SMTP dans les secrets de l'application.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-semibold text-blue-900 mb-2">
@@ -785,19 +821,23 @@ function EmailSettings() {
                   toast.error("Veuillez entrer un email de test");
                   return;
                 }
-                if (!smtpUser || !smtpPassword) {
-                  toast.error("Veuillez configurer SMTP_USER et SMTP_PASSWORD");
-                  return;
-                }
                 
                 setIsTesting(true);
                 toast.info("Envoi de l'email de test en cours...");
                 
-                // Simuler l'envoi (à remplacer par l'appel tRPC réel)
-                setTimeout(() => {
+                try {
+                  const result = await testSmtpMutation.mutateAsync({ testEmail });
+                  
+                  if (result.success) {
+                    toast.success(result.message);
+                  } else {
+                    toast.error(result.message);
+                  }
+                } catch (error) {
+                  toast.error("Erreur lors de l'envoi : " + String(error));
+                } finally {
                   setIsTesting(false);
-                  toast.success("Email de test envoyé avec succès !");
-                }, 2000);
+                }
               }}
               disabled={isTesting}
             >

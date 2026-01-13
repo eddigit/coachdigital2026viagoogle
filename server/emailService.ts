@@ -77,18 +77,28 @@ export async function sendEmail(options: {
     contentType?: string;
   }>;
 }): Promise<boolean> {
+  console.log("📧 [emailService] Tentative d'envoi d'email à:", options.to);
+  console.log("📧 [emailService] Sujet:", options.subject);
+  
   if (!transporter) {
+    console.log("📧 [emailService] Transporter non initialisé, initialisation...");
     transporter = initializeEmailService();
   }
 
   if (!transporter) {
-    console.error("❌ Service SMTP non configuré");
+    console.error("❌ [emailService] Service SMTP non configuré - Variables d'environnement:");
+    console.error("   SMTP_HOST:", process.env.SMTP_HOST ? "✅ défini" : "❌ manquant");
+    console.error("   SMTP_PORT:", process.env.SMTP_PORT ? "✅ défini" : "❌ manquant");
+    console.error("   SMTP_USER:", process.env.SMTP_USER ? "✅ défini" : "❌ manquant");
+    console.error("   SMTP_PASSWORD:", process.env.SMTP_PASSWORD ? "✅ défini" : "❌ manquant");
     return false;
   }
 
   const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER;
+  console.log("📧 [emailService] Expéditeur:", smtpFrom);
 
   try {
+    console.log("📧 [emailService] Envoi en cours via SMTP...");
     const info = await transporter.sendMail({
       from: smtpFrom,
       to: options.to,
@@ -98,10 +108,12 @@ export async function sendEmail(options: {
       attachments: options.attachments,
     });
 
-    console.log("✅ Email envoyé:", info.messageId);
+    console.log("✅ [emailService] Email envoyé avec succès! MessageId:", info.messageId);
+    console.log("✅ [emailService] Réponse SMTP:", info.response);
     return true;
   } catch (error) {
-    console.error("❌ Erreur lors de l'envoi d'email:", error);
+    console.error("❌ [emailService] Erreur lors de l'envoi d'email:", error);
+    console.error("❌ [emailService] Détails de l'erreur:", JSON.stringify(error, null, 2));
     return false;
   }
 }

@@ -23,6 +23,7 @@ import { leadsRouter, emailTemplatesRouter } from "./leadsRouter";
 import { notesRouter } from "./notesRouter";
 import { emailCampaignsRouter } from "./emailCampaignsRouter";
 import { emailTrackingRouter } from "./emailTrackingRouter";
+import { smtpRouter } from "./smtpRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -514,10 +515,24 @@ export const appRouter = router({
         
         // Envoyer notification email au coach
         try {
-          const { notifyOwner } = await import("./_core/notification");
-          await notifyOwner({
-            title: `Nouvelle demande client : ${input.title}`,
-            content: `Type: ${input.type}\nBudget: ${input.budget}€\nDélai: ${input.deadline}\nPriorité: ${input.priority}\n\nDescription:\n${input.description}${input.context ? `\n\nContexte:\n${input.context}` : ""}`,
+          const { sendEmail } = await import("./emailService");
+          const ownerEmail = process.env.SMTP_USER || "coachdigitalparis@gmail.com";
+          await sendEmail({
+            to: ownerEmail,
+            subject: `Nouvelle demande client : ${input.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #E67E50;">Nouvelle demande client</h2>
+                <p><strong>Type:</strong> ${input.type}</p>
+                <p><strong>Budget:</strong> ${input.budget}€</p>
+                <p><strong>Délai:</strong> ${input.deadline}</p>
+                <p><strong>Priorité:</strong> ${input.priority}</p>
+                <h3>Description</h3>
+                <p style="white-space: pre-wrap;">${input.description}</p>
+                ${input.context ? `<h3>Contexte</h3><p style="white-space: pre-wrap;">${input.context}</p>` : ""}
+              </div>
+            `,
+            text: `Type: ${input.type}\nBudget: ${input.budget}€\nDélai: ${input.deadline}\nPriorité: ${input.priority}\n\nDescription:\n${input.description}${input.context ? `\n\nContexte:\n${input.context}` : ""}`,
           });
         } catch (error) {
           console.error("Erreur notification email:", error);
@@ -577,10 +592,25 @@ export const appRouter = router({
         const invitationUrl = `${process.env.VITE_APP_URL || 'http://localhost:3000'}/client/invitation/${token}`;
         
         // Envoyer l'email d'invitation
-        const { notifyOwner } = await import("./_core/notification");
-        await notifyOwner({
-          title: "Nouvelle invitation client envoyée",
-          content: `Une invitation a été envoyée à ${input.email}.\n\nLien d'invitation: ${invitationUrl}`,
+        const { sendEmail } = await import("./emailService");
+        await sendEmail({
+          to: input.email,
+          subject: "Invitation à votre espace client - Coach Digital",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h2 style="color: #E67E50;">Bienvenue sur votre espace client</h2>
+              <p>Bonjour,</p>
+              <p>Vous avez été invité à accéder à votre espace client sécurisé.</p>
+              <p>Cliquez sur le lien ci-dessous pour créer votre compte :</p>
+              <p style="text-align: center; margin: 30px 0;">
+                <a href="${invitationUrl}" style="background-color: #E67E50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; display: inline-block;">Créer mon compte</a>
+              </p>
+              <p style="color: #6b7280; font-size: 12px;">Si vous n'avez pas demandé cette invitation, vous pouvez ignorer cet email.</p>
+              <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 12px;">Coach Digital - Accompagnement numérique et intégration IA</p>
+            </div>
+          `,
+          text: `Bienvenue sur votre espace client\n\nVous avez été invité à accéder à votre espace client sécurisé.\n\nCliquez sur le lien ci-dessous pour créer votre compte :\n${invitationUrl}\n\nCoach Digital - Accompagnement numérique et intégration IA`,
         });
         
         return { success: true, token, invitationUrl };
@@ -817,6 +847,12 @@ export const appRouter = router({
   // ==========================================================================
   
   documentTemplates: documentTemplatesRouter,
+  
+  // ==========================================================================
+  // SMTP CONFIGURATION
+  // ==========================================================================
+  
+  smtp: smtpRouter,
 });
 
 export type AppRouter = typeof appRouter;
