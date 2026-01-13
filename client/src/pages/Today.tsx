@@ -24,6 +24,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import TimeInvoiceGenerator from "@/components/TimeInvoiceGenerator";
 
 type Period = "morning" | "afternoon" | "evening";
 
@@ -281,6 +282,7 @@ export default function Today() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <TimeInvoiceGenerator />
           <Input
             type="date"
             value={selectedDate}

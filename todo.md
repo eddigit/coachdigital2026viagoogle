@@ -432,3 +432,12 @@
 - [x] Créer table projectCredentials manquante
 - [x] Créer table credentialAccessLogs manquante
 - [x] Corriger erreur page Settings
+
+## Génération de Factures de Temps (TERMINÉ)
+- [x] Créer router tRPC generateTimeInvoice
+- [x] Implémenter logique de calcul des heures par période
+- [x] Générer PDF avec détail des heures (pdf-lib)
+- [x] Ajouter bouton "Générer facture" dans page Aujourd'hui
+- [x] Composant TimeInvoiceGenerator avec aperçu
+- [x] Filtres par client et projet
+- [x] Téléchargement automatique du PDF
