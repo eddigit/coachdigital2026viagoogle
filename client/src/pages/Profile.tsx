@@ -13,8 +13,13 @@ export default function Profile() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   
-  // TODO: Créer la mutation updateProfile dans auth router
-  // const updateProfile = trpc.auth.updateProfile.useMutation(...)
+  const updateProfile = trpc.auth.updateProfile.useMutation({
+    onSuccess: () => {
+      toast.success("Profil mis à jour");
+      utils.auth.me.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la mise à jour"),
+  });
 
   const uploadAvatar = trpc.upload.uploadAdminAvatar.useMutation({
     onSuccess: () => {
@@ -24,8 +29,12 @@ export default function Profile() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast.info("Fonctionnalité bientôt disponible");
-    // TODO: Implémenter la mise à jour du profil
+    const formData = new FormData(e.currentTarget);
+    updateProfile.mutate({
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+    });
   };
 
   const handleAvatarUpload = async (imageData: string, mimeType: string) => {

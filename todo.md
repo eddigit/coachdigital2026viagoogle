@@ -297,3 +297,18 @@
 - [x] Déplacer widget profil (avatar, nom, email, dropdown) de sidebar vers header haut droite
 - [x] Afficher photo de profil si avatarUrl existe, sinon initiales
 - [x] Dropdown menu avec "Mon Profil" et "Sign out"
+
+## Nouvelles Fonctionnalités - Phase 4
+- [x] Afficher avatars clients dans les cards de la page Clients
+- [x] Afficher logos projets dans les cards de la page Projets
+- [x] Fallback sur initiales/icône si pas d'image
+- [x] Page détail projet /projects/:id avec onglets
+- [x] Onglet Vue d'ensemble (infos projet, client, statut, dates)
+- [ ] Onglet Cahier des charges (affichage et édition) - TODO implémentation
+- [ ] Onglet Variables d'environnement (CRUD complet) - TODO implémentation
+- [ ] Onglet Notes (CRUD notes avec éditeur) - TODO implémentation
+- [ ] Onglet Tâches (liste tâches liées au projet) - TODO implémentation
+- [ ] Onglet Documents (liste devis/factures du projet) - TODO implémentation
+- [x] Mutation auth.updateProfile dans backend
+- [x] Validation Zod pour updateProfile
+- [x] Mise à jour session après modification profil (invalidate)

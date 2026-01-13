@@ -12,6 +12,7 @@ import Documents from "./pages/Documents";
 import Settings from "./pages/Settings";
 import Calendar from "./pages/Calendar";
 import Profile from "./pages/Profile";
+import ProjectDetail from "./pages/ProjectDetail";
 import TimeTracking from "./pages/TimeTracking";
 import Messages from "./pages/Messages";
 import Vault from "./pages/Vault";
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/calendar" component={Calendar} />
       <Route path="/profile" component={Profile} />
+      <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/time-tracking" component={TimeTracking} />
       <Route path="/messages" component={Messages} />
       <Route path="/vault" component={Vault} />

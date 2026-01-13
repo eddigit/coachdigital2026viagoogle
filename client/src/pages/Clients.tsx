@@ -21,6 +21,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { Plus, Search, Mail, Phone, Building, Pencil, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import ImageUpload from "@/components/ImageUpload";
 import { toast } from "sonner";
 
 export default function Clients() {
@@ -313,10 +315,21 @@ export default function Clients() {
             {filteredClients.map((client) => (
               <Card key={client.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="truncate">
-                      {client.firstName} {client.lastName}
-                    </span>
+                  <CardTitle className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-10 w-10 border-2 shrink-0">
+                        {client.avatarUrl ? (
+                          <img src={client.avatarUrl} alt={`${client.firstName} ${client.lastName}`} className="object-cover" />
+                        ) : (
+                          <AvatarFallback className="text-sm font-medium">
+                            {client.firstName?.charAt(0)}{client.lastName?.charAt(0)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="truncate">
+                        {client.firstName} {client.lastName}
+                      </span>
+                    </div>
                     <span
                       className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
                         client.category === "vip"

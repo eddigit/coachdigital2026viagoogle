@@ -101,6 +101,16 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+    updateProfile: protectedProcedure
+      .input(z.object({
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateUser(ctx.user.id, input);
+        return { success: true };
+      }),
   }),
 
   // ==========================================================================
@@ -140,6 +150,12 @@ export const appRouter = router({
     }),
     
     get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getClientById(input.id);
+      }),
+    
+    getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getClientById(input.id);
@@ -190,6 +206,12 @@ export const appRouter = router({
     }),
     
     get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getProjectById(input.id);
+      }),
+    
+    getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectById(input.id);

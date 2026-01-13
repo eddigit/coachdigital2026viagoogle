@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Plus, Briefcase, Pencil, Trash2 } from "lucide-react";
+import { Plus, Briefcase, Pencil, Trash2, Eye } from "lucide-react";
+import { Link } from "wouter";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 export default function Projects() {
@@ -159,14 +161,29 @@ export default function Projects() {
               return (
                 <Card key={p.id}>
                   <CardHeader>
-                    <CardTitle className="flex justify-between">
-                      <span className="truncate">{p.name}</span>
-                      <Briefcase className="h-5 w-5" />
+                    <CardTitle className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 border-2 shrink-0">
+                          {p.logoUrl ? (
+                            <img src={p.logoUrl} alt={p.name} className="object-cover" />
+                          ) : (
+                            <AvatarFallback className="text-sm font-medium">
+                              <Briefcase className="h-5 w-5" />
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="truncate">{p.name}</span>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {client && <div className="text-sm">{client.firstName} {client.lastName}</div>}
                     <div className="flex gap-2">
+                      <Link href={`/projects/${p.id}`}>
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <Eye className="h-3 w-3 mr-1" />Voir
+                        </Button>
+                      </Link>
                       <Button size="sm" variant="outline" className="flex-1" onClick={() => { setEditingProject(p); setIsDialogOpen(true); }}>
                         <Pencil className="h-3 w-3 mr-1" />Modifier
                       </Button>
