@@ -836,3 +836,10 @@
 - [x] Ajouter wrapper max-w-full à tous les conteneurs
 - [x] Ajouter overflow-x-hidden à toutes les pages
 - [x] Corriger les tableaux avec min-w-max
+
+## Correction PWA - Icônes et Manifest (TERMINÉ)
+- [x] Générer les icônes PWA 192x192 et 512x512
+- [x] Icônes créées et accessibles dans /public
+- [x] Manifest.json configuré correctement
+- [x] Service worker enregistre les icônes en cache
+- [x] Fichiers PWA prêts pour la production
