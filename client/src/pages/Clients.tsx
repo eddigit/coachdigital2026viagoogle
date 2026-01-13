@@ -29,6 +29,8 @@ export default function Clients() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null);
+  const [avatarImageData, setAvatarImageData] = useState<{ data: string; mimeType: string } | null>(null);
   
   const utils = trpc.useUtils();
   const { data: clients, isLoading } = trpc.clients.list.useQuery();
@@ -85,9 +87,27 @@ export default function Clients() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const uploadAvatar = trpc.upload.uploadClientAvatar.useMutation();
+  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    let avatarUrl = editingClient?.avatarUrl || null;
+    
+    if (avatarImageData) {
+      try {
+        const result = await uploadAvatar.mutateAsync({
+          clientId: editingClient?.id || 0,
+          imageData: avatarImageData.data,
+          mimeType: avatarImageData.mimeType,
+        });
+        avatarUrl = result.url;
+      } catch (error) {
+        toast.error("Erreur lors de l'upload de l'avatar");
+        return;
+      }
+    }
     
     const data = {
       firstName: formData.get("firstName") as string,
@@ -103,6 +123,7 @@ export default function Clients() {
       category: (formData.get("category") as any) || "prospect",
       status: "active" as const,
       notes: (formData.get("notes") as string) || null,
+      avatarUrl,
     };
 
     if (editingClient) {
@@ -110,6 +131,8 @@ export default function Clients() {
     } else {
       createClient.mutate(data);
     }
+    setUploadedAvatarUrl(null);
+    setAvatarImageData(null);
   };
 
   const filteredClients = clients?.filter((client) => {
@@ -149,6 +172,18 @@ export default function Clients() {
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Photo de profil</Label>
+                  <ImageUpload
+                    currentImageUrl={uploadedAvatarUrl || editingClient?.avatarUrl}
+                    onUpload={async (imageData: string, mimeType: string) => {
+                      setAvatarImageData({ data: imageData, mimeType });
+                      return { url: imageData };
+                    }}
+                    label="Choisir une photo"
+                  />
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">Prénom *</Label>

@@ -11,11 +11,13 @@ import { trpc } from "@/lib/trpc";
 import { Plus, Briefcase, Pencil, Trash2, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import ImageUpload from "@/components/ImageUpload";
 import { toast } from "sonner";
 
 export default function Projects() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
+  const [logoImageData, setLogoImageData] = useState<{ data: string; mimeType: string } | null>(null);
   
   const utils = trpc.useUtils();
   const { data: projects, isLoading } = trpc.projects.list.useQuery();
@@ -47,9 +49,27 @@ export default function Projects() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const uploadLogo = trpc.upload.uploadProjectLogo.useMutation();
+  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    let logoUrl = editingProject?.logoUrl || null;
+    
+    if (logoImageData) {
+      try {
+        const result = await uploadLogo.mutateAsync({
+          projectId: editingProject?.id || 0,
+          imageData: logoImageData.data,
+          mimeType: logoImageData.mimeType,
+        });
+        logoUrl = result.url;
+      } catch (error) {
+        toast.error("Erreur lors de l'upload du logo");
+        return;
+      }
+    }
     
     const data = {
       clientId: parseInt(formData.get("clientId") as string),
@@ -63,6 +83,7 @@ export default function Projects() {
       estimatedHours: (formData.get("estimatedHours") as string) || null,
       budgetEstimate: (formData.get("budgetEstimate") as string) || null,
       notes: (formData.get("notes") as string) || null,
+      logoUrl,
     };
 
     if (editingProject) {
@@ -70,6 +91,7 @@ export default function Projects() {
     } else {
       createProject.mutate(data);
     }
+    setLogoImageData(null);
   };
 
   return (
@@ -93,6 +115,18 @@ export default function Projects() {
                 <DialogTitle>{editingProject ? "Modifier" : "Créer"} un projet</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Logo du projet</Label>
+                  <ImageUpload
+                    currentImageUrl={editingProject?.logoUrl}
+                    onUpload={async (imageData: string, mimeType: string) => {
+                      setLogoImageData({ data: imageData, mimeType });
+                      return { url: imageData };
+                    }}
+                    label="Choisir un logo"
+                  />
+                </div>
+                
                 <div className="space-y-2">
                   <Label>Client *</Label>
                   <Select name="clientId" defaultValue={editingProject?.clientId?.toString()} required>

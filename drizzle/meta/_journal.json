@@ -78,6 +78,13 @@
       "when": 1768319018596,
       "tag": "0010_freezing_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1768320131810,
+      "tag": "0011_fresh_tyrannus",
+      "breakpoints": true
     }
   ]
 }

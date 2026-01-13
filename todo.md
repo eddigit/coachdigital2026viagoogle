@@ -346,3 +346,21 @@
 - [ ] Filtres par statut (todo, in_progress, done)
 - [ ] Onglet Documents : afficher les devis/factures du projet
 - [ ] Filtres par type (devis, facture) et statut
+
+## Nouvelles Fonctionnalités - Phase 5
+- [x] Intégrer ImageUpload dans le dialog de création client
+- [x] Intégrer ImageUpload dans le dialog d'édition client
+- [x] Intégrer ImageUpload dans le dialog de création projet
+- [x] Intégrer ImageUpload dans le dialog d'édition projet
+- [x] Recherche globale dans le header avec Command palette
+- [x] Recherche clients, projets, tâches, documents par nom/numéro
+- [x] Navigation directe vers les résultats de recherche
+- [x] Raccourci clavier Cmd/Ctrl+K pour ouvrir
+- [x] Système de notifications en temps réel
+- [x] Icône cloche dans le header avec badge compteur
+- [x] Table notifications dans la base de données
+- [x] Router tRPC pour CRUD notifications
+- [x] Composant NotificationsBell avec popover
+- [x] Rafraîchissement automatique toutes les 30 secondes
+- [x] Marquer comme lu / Supprimer notifications
+- [ ] Dropdown menu notifications avec liste et actions

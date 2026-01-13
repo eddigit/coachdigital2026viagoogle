@@ -22,6 +22,8 @@ import {
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User } from "lucide-react";
+import GlobalSearch from "@/components/GlobalSearch";
+import NotificationsBell from "@/components/NotificationsBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -232,7 +234,7 @@ function DashboardLayoutContent({
       <SidebarInset>
         {/* Header avec profil en haut à droite */}
         <div className="flex border-b h-14 items-center justify-between bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4 flex-1">
             {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />}
             <div className="flex items-center gap-3">
               <div className="flex flex-col gap-1">
@@ -241,10 +243,16 @@ function DashboardLayoutContent({
                 </span>
               </div>
             </div>
+            <div className="flex-1 max-w-md">
+              <GlobalSearch />
+            </div>
           </div>
           
-          {/* Widget Profil */}
-          <DropdownMenu>
+          {/* Notifications et Profil */}
+          <div className="flex items-center gap-2">
+            <NotificationsBell />
+            {/* Widget Profil */}
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <Avatar className="h-8 w-8 border shrink-0">
@@ -283,6 +291,7 @@ function DashboardLayoutContent({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
         <main className="flex-1 p-4">{children}</main>
       </SidebarInset>
