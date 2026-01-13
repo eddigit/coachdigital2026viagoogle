@@ -270,10 +270,7 @@ export default function Requirements() {
         </div>
 
         {/* Message si aucun cahier des charges */}
-        {projects?.every((p) => {
-          const { data: reqs } = trpc.requirements.list.useQuery({ projectId: p.id });
-          return !reqs || reqs.length === 0;
-        }) && (
+        {(!allRequirements || allRequirements.length === 0) && (
           <Card className="bg-card/50 border-border/50">
             <CardContent className="py-12 text-center">
               <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />

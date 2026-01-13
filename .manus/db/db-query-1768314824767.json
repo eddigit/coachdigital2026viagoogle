@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `projectRequirements` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `projectId` int NOT NULL,\n  `version` int NOT NULL DEFAULT 1,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `objectives` text,\n  `scope` text,\n  `constraints` text,\n  `deliverables` text,\n  `timeline` text,\n  `budget` text,\n  `status` enum('draft','pending','approved','archived') NOT NULL DEFAULT 'draft',\n  `approvedAt` timestamp,\n  `approvedBy` int,\n  `createdBy` int NOT NULL,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `projectRequirements_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute CREATE TABLE IF NOT EXISTS `projectRequirements` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `projectId` int NOT NULL,\n  `version` int NOT NULL DEFAULT 1,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `objectives` text,\n  `scope` text,\n  `constraints` text,\n  `deliverables` text,\n  `timeline` text,\n  `budget` text,\n  `status` enum('draft','pending','approved','archived') NOT NULL DEFAULT 'draft',\n  `approvedAt` timestamp,\n  `approvedBy` int,\n  `createdBy` int NOT NULL,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `projectRequirements_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 207
+}
