@@ -20,6 +20,7 @@ import { documentTemplatesRouter } from "./documentTemplatesRouter";
 import { timeEntriesRouter } from "./timeEntriesRouter";
 import { timeInvoiceRouter } from "./timeInvoiceRouter";
 import { leadsRouter, emailTemplatesRouter } from "./leadsRouter";
+import { notesRouter } from "./notesRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -104,6 +105,7 @@ export const appRouter = router({
   timeInvoice: timeInvoiceRouter,
   leads: leadsRouter,
   emailTemplates: emailTemplatesRouter,
+  notes: notesRouter,
   
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

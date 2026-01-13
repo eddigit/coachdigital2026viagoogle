@@ -532,3 +532,21 @@
 - [x] Mapper templates emails → table emailTemplates (4 templates importés)
 - [x] Exécuter l'import et valider les données
 - [x] Rapport d'import : 32 importés, 42 ignorés (doublons), 14 erreurs (tâches)
+
+## Restauration des Notes (URGENT)
+- [ ] Vérifier si la table notes existe dans la base de données
+- [ ] Vérifier si les notes de l'ancien système ont été importées
+- [ ] Vérifier si la page Notes existe dans le projet
+- [ ] Vérifier si le menu Notes est présent dans la sidebar
+- [ ] Restaurer la page Notes si manquante
+- [ ] Restaurer le menu Notes dans DashboardLayout
+
+## Restauration des Notes (TERMINÉ)
+- [x] Créer la table notes dans la base de données
+- [x] Créer le router tRPC notesRouter avec CRUD complet
+- [x] Créer la page Notes avec interface post-it moderne
+- [x] Ajouter le menu Notes dans la sidebar (icône StickyNote)
+- [x] Interface avec 6 couleurs (jaune, bleu, vert, rouge, violet, orange)
+- [x] Fonctionnalité d'épinglage des notes
+- [x] Recherche dans les notes
+- [x] Vérification: aucune note dans l'ancien système à importer

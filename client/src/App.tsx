@@ -19,6 +19,7 @@ import Vault from "./pages/Vault";
 import Requirements from "./pages/Requirements";
 import Today from "./pages/Today";
 import Leads from "./pages/Leads";
+import Notes from "./pages/Notes";
 import ClientLogin from "./pages/client/ClientLogin";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientInvitation from "./pages/client/Invitation";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/requirements" component={Requirements} />
       <Route path="/today" component={Today} />
       <Route path="/leads" component={Leads} />
+      <Route path="/notes" component={Notes} />
       
       {/* Routes espace client */}
       <Route path="/client/login" component={ClientLogin} />

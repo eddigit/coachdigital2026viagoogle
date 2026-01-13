@@ -350,7 +350,28 @@ export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
 
 // ============================================================================
-// TIME TRACKING
+// NOTES
+// ============================================================================
+
+export const notes = mysqlTable("notes", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  clientId: int("clientId"),
+  projectId: int("projectId"),
+  taskId: int("taskId"),
+  color: mysqlEnum("color", ["yellow", "blue", "green", "red", "purple", "orange"]).default("yellow"),
+  pinned: boolean("pinned").default(false).notNull(),
+  isClientVisible: boolean("isClientVisible").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Note = typeof notes.$inferSelect;
+export type InsertNote = typeof notes.$inferInsert;
+
+// ============================================================================
+// DOCUMENTS (Devis, Factures)
 // ============================================================================
 
 export const timeEntries = mysqlTable("timeEntries", {
