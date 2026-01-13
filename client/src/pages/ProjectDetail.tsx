@@ -5,19 +5,88 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { useRoute } from "wouter";
-import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck } from "lucide-react";
+import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck, Plus, Edit, Download } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { generateRequirementPDF } from "@/lib/requirementsPdfGenerator";
 
 export default function ProjectDetail() {
   const [, params] = useRoute("/projects/:id");
   const projectId = params?.id ? parseInt(params.id) : 0;
+  const [isRequirementDialogOpen, setIsRequirementDialogOpen] = useState(false);
+  const [editingRequirement, setEditingRequirement] = useState<any>(null);
+  const [selectedRequirement, setSelectedRequirement] = useState<any>(null);
+  
+  const utils = trpc.useUtils();
 
   const { data: project, isLoading } = trpc.projects.getById.useQuery({ id: projectId });
   const { data: client } = trpc.clients.getById.useQuery(
     { id: project?.clientId || 0 },
     { enabled: !!project?.clientId }
   );
+  
+  const { data: requirements } = trpc.requirements.list.useQuery(
+    { projectId },
+    { enabled: !!projectId }
+  );
+  
+  const createRequirement = trpc.requirements.create.useMutation({
+    onSuccess: () => {
+      toast.success("Cahier des charges créé");
+      setIsRequirementDialogOpen(false);
+      setEditingRequirement(null);
+      utils.requirements.list.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la création"),
+  });
+  
+  const updateRequirement = trpc.requirements.update.useMutation({
+    onSuccess: () => {
+      toast.success("Cahier des charges modifié");
+      setIsRequirementDialogOpen(false);
+      setEditingRequirement(null);
+      utils.requirements.list.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la modification"),
+  });
+  
+  const handleRequirementSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      projectId,
+      title: formData.get("title") as string,
+      description: formData.get("description") as string,
+      objectives: formData.get("objectives") as string,
+      scope: formData.get("scope") as string,
+      constraints: formData.get("constraints") as string,
+      deliverables: formData.get("deliverables") as string,
+      timeline: formData.get("timeline") as string,
+      budget: formData.get("budget") as string,
+      status: formData.get("status") as "draft" | "review" | "approved" | "archived",
+    };
+    
+    if (editingRequirement) {
+      updateRequirement.mutate({ id: editingRequirement.id, ...data });
+    } else {
+      createRequirement.mutate(data);
+    }
+  };
+  
+  const handleDownloadPDF = async (requirement: any) => {
+    try {
+      await generateRequirementPDF(requirement);
+      toast.success("PDF téléchargé");
+    } catch (error) {
+      toast.error("Erreur lors de la génération du PDF");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -211,15 +280,250 @@ export default function ProjectDetail() {
           </TabsContent>
 
           {/* Onglet Cahier des charges */}
-          <TabsContent value="requirements">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cahier des Charges</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Fonctionnalité à venir...</p>
-              </CardContent>
-            </Card>
+          <TabsContent value="requirements" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Cahiers des Charges</h3>
+              <Dialog open={isRequirementDialogOpen} onOpenChange={setIsRequirementDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setEditingRequirement(null)}>
+                    <Plus className="h-4 w-4 mr-2" />Nouveau Cahier des Charges
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingRequirement ? "Modifier le Cahier des Charges" : "Nouveau Cahier des Charges"}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleRequirementSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Titre</Label>
+                      <Input
+                        id="title"
+                        name="title"
+                        defaultValue={editingRequirement?.title || ""}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        rows={3}
+                        defaultValue={editingRequirement?.description || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="objectives">Objectifs</Label>
+                      <Textarea
+                        id="objectives"
+                        name="objectives"
+                        rows={3}
+                        defaultValue={editingRequirement?.objectives || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="scope">Périmètre</Label>
+                      <Textarea
+                        id="scope"
+                        name="scope"
+                        rows={3}
+                        defaultValue={editingRequirement?.scope || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="constraints">Contraintes</Label>
+                      <Textarea
+                        id="constraints"
+                        name="constraints"
+                        rows={3}
+                        defaultValue={editingRequirement?.constraints || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="deliverables">Livrables</Label>
+                      <Textarea
+                        id="deliverables"
+                        name="deliverables"
+                        rows={3}
+                        defaultValue={editingRequirement?.deliverables || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="timeline">Planning</Label>
+                      <Textarea
+                        id="timeline"
+                        name="timeline"
+                        rows={3}
+                        defaultValue={editingRequirement?.timeline || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="budget">Budget</Label>
+                      <Input
+                        id="budget"
+                        name="budget"
+                        defaultValue={editingRequirement?.budget || ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="status">Statut</Label>
+                      <Select name="status" defaultValue={editingRequirement?.status || "draft"}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Brouillon</SelectItem>
+                          <SelectItem value="review">En revue</SelectItem>
+                          <SelectItem value="approved">Approuvé</SelectItem>
+                          <SelectItem value="archived">Archivé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setIsRequirementDialogOpen(false)}>
+                        Annuler
+                      </Button>
+                      <Button type="submit">
+                        {editingRequirement ? "Modifier" : "Créer"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            
+            {!requirements || requirements.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">Aucun cahier des charges pour ce projet</p>
+                  <Button onClick={() => setIsRequirementDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />Créer le premier cahier des charges
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {requirements.map((req: any) => (
+                  <Card key={req.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => setSelectedRequirement(req)}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="text-lg">{req.title}</CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1">Version {req.version}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            req.status === "approved" ? "bg-green-100 text-green-700" :
+                            req.status === "review" ? "bg-blue-100 text-blue-700" :
+                            req.status === "archived" ? "bg-gray-100 text-gray-700" :
+                            "bg-yellow-100 text-yellow-700"
+                          }`}>
+                            {req.status === "approved" ? "Approuvé" :
+                             req.status === "review" ? "En revue" :
+                             req.status === "archived" ? "Archivé" : "Brouillon"}
+                          </span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {req.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{req.description}</p>
+                      )}
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingRequirement(req);
+                            setIsRequirementDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />Modifier
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF(req);
+                          }}
+                        >
+                          <Download className="h-3 w-3 mr-1" />PDF
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            
+            {selectedRequirement && (
+              <Dialog open={!!selectedRequirement} onOpenChange={() => setSelectedRequirement(null)}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{selectedRequirement.title}</DialogTitle>
+                    <p className="text-sm text-muted-foreground">Version {selectedRequirement.version}</p>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    {selectedRequirement.description && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Description</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.description}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.objectives && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Objectifs</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.objectives}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.scope && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Périmètre</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.scope}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.constraints && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Contraintes</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.constraints}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.deliverables && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Livrables</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.deliverables}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.timeline && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Planning</h4>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedRequirement.timeline}</p>
+                      </div>
+                    )}
+                    {selectedRequirement.budget && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Budget</h4>
+                        <p className="text-muted-foreground">{selectedRequirement.budget}</p>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </TabsContent>
 
           {/* Onglet Variables d'environnement */}

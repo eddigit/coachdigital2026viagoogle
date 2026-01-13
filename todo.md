@@ -312,3 +312,12 @@
 - [x] Mutation auth.updateProfile dans backend
 - [x] Validation Zod pour updateProfile
 - [x] Mise à jour session après modification profil (invalidate)
+
+## Onglet Cahier des Charges - Page Détail Projet
+- [x] Afficher la liste des requirements liés au projet
+- [x] Bouton "Créer un cahier des charges" si aucun requirement
+- [x] Formulaire de création requirement avec tous les champs
+- [x] Affichage détaillé du requirement sélectionné
+- [x] Bouton "Modifier" pour éditer le requirement
+- [x] Versioning automatique lors des modifications (backend existant)
+- [x] Export PDF du cahier des charges depuis la page détail projet
