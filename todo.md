@@ -242,3 +242,24 @@
 - [x] Bouton "Payer" sur les factures dans espace client
 - [ ] Webhook Stripe pour mise à jour automatique statuts
 - [x] Composant ClientPayments avec liste factures et paiement
+
+## Nouvelles Fonctionnalités - Phase 3 (demande utilisateur)
+- [x] Webhook Stripe endpoint /api/stripe/webhook
+- [x] Vérification signature webhook Stripe
+- [x] Gestion événement checkout.session.completed
+- [x] Mise à jour automatique statut facture → "paid"
+- [x] Enregistrement date paiement (paidAt)
+- [x] Enregistrement payment_intent_id
+- [x] Système de messagerie interne
+- [x] Schéma base de données pour messages
+- [x] Router tRPC pour messages (list, send, markAsRead)
+- [x] Composant chat temps réel avec historique
+- [x] Interface messagerie dans page Messages
+- [x] Rafraîchissement automatique toutes les 5 secondes
+- [x] Calendrier interactif
+- [x] Composant calendrier avec vue mensuelle/hebdomadaire (react-big-calendar)
+- [x] Création/édition/suppression événements
+- [x] Liaison événements avec clients/projets/tâches
+- [x] Sélection couleur personnalisée par événement
+- [x] Types d'événements (réunion, appel, échéance, rappel, événement, autre)
+- [x] Vue détaillée événement avec formulaire complet

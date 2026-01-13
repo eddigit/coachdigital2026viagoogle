@@ -400,3 +400,62 @@ export const credentialAccessLogs = mysqlTable("credentialAccessLogs", {
 
 export type CredentialAccessLog = typeof credentialAccessLogs.$inferSelect;
 export type InsertCredentialAccessLog = typeof credentialAccessLogs.$inferInsert;
+
+// ============================================================================
+// MESSAGES (Messagerie interne coach ↔ clients)
+// ============================================================================
+
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  // Participants
+  senderId: int("senderId").notNull(), // ID de l'utilisateur (admin ou clientUser)
+  senderType: mysqlEnum("senderType", ["admin", "client"]).notNull(),
+  recipientId: int("recipientId").notNull(),
+  recipientType: mysqlEnum("recipientType", ["admin", "client"]).notNull(),
+  // Contexte
+  clientId: int("clientId"), // Client concerné (pour filtrage)
+  projectId: int("projectId"), // Projet concerné (optionnel)
+  // Contenu
+  subject: varchar("subject", { length: 255 }),
+  content: text("content").notNull(),
+  attachmentUrl: text("attachmentUrl"), // URL fichier joint (S3)
+  attachmentName: varchar("attachmentName", { length: 255 }),
+  // Statut
+  isRead: boolean("isRead").default(false).notNull(),
+  readAt: timestamp("readAt"),
+  // Métadonnées
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+
+// ============================================================================
+// CALENDAR EVENTS (Événements calendrier)
+// ============================================================================
+
+export const calendarEvents = mysqlTable("calendarEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  // Relations
+  clientId: int("clientId"),
+  projectId: int("projectId"),
+  taskId: int("taskId"),
+  // Dates
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate"),
+  allDay: boolean("allDay").default(false).notNull(),
+  // Détails
+  location: varchar("location", { length: 255 }),
+  type: mysqlEnum("type", ["meeting", "call", "deadline", "reminder", "event", "other"]).default("event").notNull(),
+  color: varchar("color", { length: 7 }), // Code couleur hex (#FF5733)
+  // Créateur
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = typeof calendarEvents.$inferInsert;

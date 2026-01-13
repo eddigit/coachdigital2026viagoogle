@@ -10,6 +10,8 @@ import { clientUsers } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { notifyDocumentCreated, notifyQuoteConverted, getClientLoginUrl } from "./emailNotifications";
 import { stripeRouter } from "./stripeRouter";
+import { messagesRouter } from "./messagesRouter";
+import { calendarRouter } from "./calendarRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -87,6 +89,8 @@ const companySchema = z.object({
 export const appRouter = router({
   system: systemRouter,
   stripe: stripeRouter,
+  messages: messagesRouter,
+  calendar: calendarRouter,
   
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

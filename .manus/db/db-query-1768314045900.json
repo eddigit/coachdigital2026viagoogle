@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `messages` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `senderId` int NOT NULL,\n  `senderType` enum('admin','client') NOT NULL,\n  `recipientId` int NOT NULL,\n  `recipientType` enum('admin','client') NOT NULL,\n  `clientId` int,\n  `projectId` int,\n  `subject` varchar(255),\n  `content` text NOT NULL,\n  `attachmentUrl` text,\n  `attachmentName` varchar(255),\n  `isRead` boolean NOT NULL DEFAULT false,\n  `readAt` timestamp,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `messages_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute CREATE TABLE `messages` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `senderId` int NOT NULL,\n  `senderType` enum('admin','client') NOT NULL,\n  `recipientId` int NOT NULL,\n  `recipientType` enum('admin','client') NOT NULL,\n  `clientId` int,\n  `projectId` int,\n  `subject` varchar(255),\n  `content` text NOT NULL,\n  `attachmentUrl` text,\n  `attachmentName` varchar(255),\n  `isRead` boolean NOT NULL DEFAULT false,\n  `readAt` timestamp,\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  `updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n  CONSTRAINT `messages_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 225
+}
