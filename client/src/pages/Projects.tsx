@@ -198,11 +198,11 @@ export default function Projects() {
                     <CardTitle className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Avatar className="h-10 w-10 border-2 shrink-0">
-                          {p.logoUrl ? (
-                            <img src={p.logoUrl} alt={p.name} className="object-cover" />
+                          {client?.avatarUrl ? (
+                            <img src={client.avatarUrl} alt={`${client.firstName} ${client.lastName}`} className="object-cover" />
                           ) : (
                             <AvatarFallback className="text-sm font-medium">
-                              <Briefcase className="h-5 w-5" />
+                              {client ? `${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}` : <Briefcase className="h-5 w-5" />}
                             </AvatarFallback>
                           )}
                         </Avatar>

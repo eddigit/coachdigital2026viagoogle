@@ -729,3 +729,11 @@
 - [x] Vérifier les variables d'environnement requises (SMTP optionnel)
 - [x] Ajouter distinction production/développement pour le port
 - [x] Tester le redémarrage du serveur
+
+
+## Affichage Avatar Client dans Cards Projets (TERMINÉ)
+- [x] Modifier la page Projets pour afficher l'avatar du client affecté
+- [x] Remplacer l'icône générique par l'avatar du client
+- [x] Fallback sur initiales si pas d'avatar
+- [x] Fallback sur icône Briefcase si pas de client
+- [x] Tester l'affichage dans les cards
