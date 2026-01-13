@@ -452,3 +452,42 @@
 - [x] Demander credentials SMTP Gmail à l'utilisateur
 - [x] Tester l'envoi d'email avec vitest
 - [x] Tests passés avec succès
+
+## Système de Prospection et Pipeline de Vente (TERMINÉ)
+
+### Base de données
+- [x] Créer table leads avec statuts (Suspect, Analyse, Négociation, Conclusion)
+- [x] Créer table emailTemplates pour les templates de prospection
+- [x] Créer table leadEmails pour l'historique des envois
+- [x] Ajouter champs : potentialAmount, probability, source, notes
+
+### Router tRPC
+- [x] Créer leadsRouter avec CRUD complet
+- [x] Mutation pour changer le statut d'un lead
+- [x] Mutation pour convertir lead en client
+- [x] Query pour récupérer leads par statut
+- [x] Mutation pour envoyer email de prospection
+- [x] Router emailTemplatesRouter pour les templates
+
+### Page Prospection
+- [x] Créer page Leads.tsx avec 3 modes d'affichage
+- [x] Mode Liste avec tableau filtrable
+- [x] Mode Cartes avec grid responsive
+- [x] Mode Kanban avec drag & drop entre colonnes (@hello-pangea/dnd)
+- [x] Formulaire d'ajout/édition de lead
+- [x] Modal d'envoi d'email avec sélection de template
+- [x] Conversion automatique Lead → Client
+- [x] Statistiques du pipeline (total, potentiel, pondéré)
+- [x] Filtres par statut et recherche
+
+### Templates d'émails
+- [x] Template "Vœux 2026"
+- [x] Template "Présentation services"
+- [x] Template "Relance après premier contact"
+- [x] Template "Proposition de rendez-vous"
+- [x] Remplacement automatique des variables {{firstName}}
+
+### Tests
+- [x] Tests vitest pour leadsRouter (5 tests passés)
+- [x] Tests de conversion Lead → Client
+- [x] Tests des statistiques du pipeline

@@ -177,6 +177,82 @@ export type Client = typeof clients.$inferSelect;
 export type InsertClient = typeof clients.$inferInsert;
 
 // ============================================================================
+// LEADS (Prospection)
+// ============================================================================
+
+export const leads = mysqlTable("leads", {
+  id: int("id").autoincrement().primaryKey(),
+  // Informations personnelles
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 20 }),
+  // Informations professionnelles
+  company: varchar("company", { length: 255 }),
+  position: varchar("position", { length: 100 }),
+  // Adresse
+  address: text("address"),
+  postalCode: varchar("postalCode", { length: 10 }),
+  city: varchar("city", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("France"),
+  // Pipeline de vente
+  status: mysqlEnum("status", ["suspect", "analyse", "negociation", "conclusion"]).default("suspect").notNull(),
+  potentialAmount: decimal("potentialAmount", { precision: 10, scale: 2 }),
+  probability: int("probability").default(25), // % de chance de conversion
+  source: varchar("source", { length: 100 }), // LinkedIn, Référence, Site web, etc.
+  // Notes et suivi
+  notes: text("notes"),
+  lastContactDate: date("lastContactDate"),
+  nextFollowUpDate: date("nextFollowUpDate"),
+  // Avatar
+  avatarUrl: varchar("avatarUrl", { length: 500 }),
+  // Conversion
+  convertedToClientId: int("convertedToClientId"),
+  convertedAt: timestamp("convertedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = typeof leads.$inferInsert;
+
+// ============================================================================
+// EMAIL TEMPLATES (Templates de prospection)
+// ============================================================================
+
+export const emailTemplates = mysqlTable("emailTemplates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  category: mysqlEnum("category", ["voeux", "presentation", "relance", "rendez_vous", "autre"]).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
+
+// ============================================================================
+// LEAD EMAILS (Historique des envois)
+// ============================================================================
+
+export const leadEmails = mysqlTable("leadEmails", {
+  id: int("id").autoincrement().primaryKey(),
+  leadId: int("leadId").notNull(),
+  templateId: int("templateId"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  sentBy: int("sentBy").notNull(),
+  status: mysqlEnum("status", ["sent", "failed", "opened", "replied"]).default("sent").notNull(),
+});
+
+export type LeadEmail = typeof leadEmails.$inferSelect;
+export type InsertLeadEmail = typeof leadEmails.$inferInsert;
+
+// ============================================================================
 // PROJECTS
 // ============================================================================
 
