@@ -6,7 +6,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { getDb } from "./db";
 import * as clientAuth from "./clientAuth";
-import { clientUsers } from "../drizzle/schema";
+import { clientUsers, projectRequirements } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { notifyDocumentCreated, notifyQuoteConverted, getClientLoginUrl } from "./emailNotifications";
 import { stripeRouter } from "./stripeRouter";
@@ -687,6 +687,14 @@ export const appRouter = router({
   // ==========================================================================
   
   requirements: router({
+    listAll: protectedProcedure
+      .query(async () => {
+        // Récupérer tous les requirements
+        const db_inst = await db.getDb();
+        if (!db_inst) throw new Error("Database not available");
+        return await db_inst.select().from(projectRequirements);
+      }),
+    
     list: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input }) => {

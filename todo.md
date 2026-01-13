@@ -263,3 +263,6 @@
 - [x] Sélection couleur personnalisée par événement
 - [x] Types d'événements (réunion, appel, échéance, rappel, événement, autre)
 - [x] Vue détaillée événement avec formulaire complet
+
+## Corrections Bugs
+- [x] Corriger l'erreur React Hooks dans Requirements (utilisation conditionnelle de hooks dans map)

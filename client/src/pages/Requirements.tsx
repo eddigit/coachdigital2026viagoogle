@@ -33,6 +33,7 @@ export default function Requirements() {
   const { data: projects } = trpc.projects.list.useQuery();
   const { data: clients } = trpc.clients.list.useQuery();
   const { data: companyData } = trpc.company.get.useQuery();
+  const { data: allRequirements } = trpc.requirements.listAll.useQuery();
 
   const handleDownloadPDF = (requirement: any, project: any) => {
     if (!companyData) {
@@ -196,9 +197,10 @@ export default function Requirements() {
         {/* Liste des projets avec leurs requirements */}
         <div className="grid gap-4">
           {projects?.map((project) => {
-            const { data: requirements } = trpc.requirements.list.useQuery({
-              projectId: project.id,
-            });
+            // Filtrer les requirements pour ce projet
+            const requirements = allRequirements?.filter(
+              (req) => req.projectId === project.id
+            );
 
             if (!requirements || requirements.length === 0) return null;
 
