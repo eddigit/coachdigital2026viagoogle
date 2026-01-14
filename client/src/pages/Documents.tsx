@@ -55,8 +55,7 @@ export default function Documents() {
       return;
     }
 
-    // Récupérer les lignes du document
-    const docDetails = await trpc.documents.get.useQuery({ id: docId });
+    // Utiliser les données du document directement
     
     // Préparer les données pour le PDF
     const pdfData = {
@@ -87,12 +86,7 @@ export default function Documents() {
         country: client.country || null,
         company: client.company || null,
       },
-      lines: docDetails.data?.lines?.map((line) => ({
-        description: line.description,
-        quantity: parseFloat(line.quantity || "0"),
-        unitPrice: parseFloat(line.unitPriceHt || "0"),
-        vatRate: parseFloat(line.tvaRate || "0"),
-      })) || [],
+      lines: [], // Les lignes sont stockées séparément
       notes: doc.notes || undefined,
       legalMentions: companyData.legalMentions || undefined,
     };
