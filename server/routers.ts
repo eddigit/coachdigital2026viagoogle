@@ -503,6 +503,65 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await db.getNextDocumentNumber(input.type);
       }),
+    
+    sendByEmail: protectedProcedure
+      .input(z.object({ 
+        documentId: z.number(),
+        pdfBase64: z.string(),
+        customMessage: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        // Récupérer le document
+        const document = await db.getDocumentById(input.documentId);
+        if (!document) {
+          throw new Error("Document introuvable");
+        }
+        
+        // Récupérer le client
+        const client = await db.getClientById(document.clientId);
+        if (!client || !client.email) {
+          throw new Error("Client introuvable ou sans email");
+        }
+        
+        const docType = document.type === "quote" ? "Devis" : "Facture";
+        const subject = `${docType} ${document.number} - Coach Digital`;
+        
+        const defaultMessage = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #E67E50;">Votre ${docType.toLowerCase()}</h2>
+            <p>Bonjour ${client.firstName},</p>
+            <p>Veuillez trouver ci-joint votre ${docType.toLowerCase()} n° ${document.number}.</p>
+            <p><strong>Montant total TTC :</strong> ${parseFloat(document.totalTtc || "0").toFixed(2)} €</p>
+            ${document.dueDate ? `<p><strong>Échéance :</strong> ${new Date(document.dueDate).toLocaleDateString("fr-FR")}</p>` : ""}
+            <p>Pour accéder à votre espace client et consulter vos documents, cliquez sur le lien ci-dessous :</p>
+            <p><a href="https://coachdigital.biz/client" style="color: #E67E50;">Accéder à mon espace client</a></p>
+            <p>Cordialement,<br/>Coach Digital Paris</p>
+          </div>
+        `;
+        
+        const { sendEmail } = await import("./emailService");
+        const sent = await sendEmail({
+          to: client.email,
+          subject,
+          html: input.customMessage || defaultMessage,
+          attachments: [{
+            filename: `${docType.toLowerCase()}_${document.number}.pdf`,
+            content: Buffer.from(input.pdfBase64, "base64"),
+            contentType: "application/pdf",
+          }],
+        });
+        
+        if (!sent) {
+          throw new Error("Erreur lors de l'envoi de l'email");
+        }
+        
+        // Mettre à jour le statut du document à "sent" s'il était en brouillon
+        if (document.status === "draft") {
+          await db.updateDocument(input.documentId, { status: "sent" });
+        }
+        
+        return { success: true, sentTo: client.email };
+      }),
   }),
 
   // ==========================================================================

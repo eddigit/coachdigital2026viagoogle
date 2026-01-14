@@ -843,3 +843,11 @@
 - [x] Manifest.json configuré correctement
 - [x] Service worker enregistre les icônes en cache
 - [x] Fichiers PWA prêts pour la production
+
+
+## Nouvelles Fonctionnalités - Janvier 2026 (demande utilisateur)
+- [x] Suppression de documents (mutation tRPC + bouton fonctionnel)
+- [x] Édition de documents (charger données dans formulaire + mutation update)
+- [x] Envoi de documents par email (PDF en pièce jointe au client)
+- [x] Vérification complète du projet
+- [ ] Push final vers GitHub après corrections

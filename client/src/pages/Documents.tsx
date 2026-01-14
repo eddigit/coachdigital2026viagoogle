@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { DocumentForm } from "@/components/DocumentForm";
-import { downloadDocumentPDF } from "@/lib/pdfGenerator";
-import { FileText, Download, Plus, Eye, ArrowRight } from "lucide-react";
+import { DocumentEditForm } from "@/components/DocumentEditForm";
+import { downloadDocumentPDF, getDocumentPDFBase64 } from "@/lib/pdfGenerator";
+import { FileText, Download, Plus, Eye, ArrowRight, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Documents() {
@@ -21,6 +22,17 @@ export default function Documents() {
   const { data: clients } = trpc.clients.list.useQuery();
   const { data: companyData } = trpc.company.get.useQuery();
   const [showForm, setShowForm] = useState(false);
+  const [editDocumentId, setEditDocumentId] = useState<number | null>(null);
+
+  const deleteDocument = trpc.documents.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Document supprimé avec succès !");
+      utils.documents.list.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
 
   const convertToInvoice = (trpc.documents as any).convertToInvoice.useMutation({
     onSuccess: (data: any) => {
@@ -32,10 +44,91 @@ export default function Documents() {
     },
   });
 
+  const sendByEmail = trpc.documents.sendByEmail.useMutation({
+    onSuccess: (data: any) => {
+      toast.success(`Document envoyé par email à ${data.sentTo}`);
+      utils.documents.list.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   const handleConvertToInvoice = (quoteId: number) => {
     if (confirm("Voulez-vous convertir ce devis en facture ?")) {
       convertToInvoice.mutate({ quoteId });
     }
+  };
+
+  const handleSendByEmail = (docId: number) => {
+    const doc = documents?.find((d) => d.id === docId);
+    if (!doc || !companyData) {
+      toast.error("Impossible d'envoyer le document");
+      return;
+    }
+
+    const client = getClient(doc.clientId);
+    if (!client) {
+      toast.error("Client introuvable");
+      return;
+    }
+
+    if (!client.email) {
+      toast.error("Le client n'a pas d'adresse email");
+      return;
+    }
+
+    if (!confirm(`Envoyer le document par email à ${client.email} ?`)) {
+      return;
+    }
+
+    // Préparer les données pour le PDF
+    const pdfData = {
+      type: doc.type as "quote" | "invoice",
+      number: doc.number,
+      date: new Date(doc.date),
+      dueDate: doc.dueDate ? new Date(doc.dueDate) : undefined,
+      company: {
+        name: companyData.name,
+        address: companyData.address || null,
+        city: companyData.city || null,
+        postalCode: companyData.postalCode || null,
+        country: companyData.country || null,
+        phone: companyData.phone || null,
+        email: companyData.email || null,
+        siret: companyData.siret || null,
+        tvaNumber: companyData.tvaNumber || null,
+        iban: companyData.iban || null,
+        bic: companyData.bic || null,
+      },
+      client: {
+        name: `${client.firstName} ${client.lastName}`,
+        email: client.email || null,
+        phone: client.phone || null,
+        address: client.address || null,
+        city: client.city || null,
+        postalCode: client.postalCode || null,
+        country: client.country || null,
+        company: client.company || null,
+      },
+      lines: ((doc as any).lines || []).map((line: any) => ({
+        description: line.description,
+        quantity: parseFloat(line.quantity) || 0,
+        unitPrice: parseFloat(line.unitPriceHt) || 0,
+        vatRate: parseFloat(line.tvaRate) || 20,
+      })),
+      notes: doc.notes || undefined,
+      legalMentions: companyData.legalMentions || undefined,
+    };
+
+    // Générer le PDF en base64
+    const pdfBase64 = getDocumentPDFBase64(pdfData);
+
+    // Envoyer par email
+    sendByEmail.mutate({
+      documentId: docId,
+      pdfBase64,
+    });
   };
 
   const getClient = (clientId: number) => {
@@ -198,20 +291,30 @@ export default function Documents() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => toast.info("Édition à venir")}
+                          onClick={() => handleSendByEmail(doc.id)}
+                          disabled={sendByEmail.isPending}
+                        >
+                          <Mail className="h-4 w-4 mr-2" />
+                          {sendByEmail.isPending ? "Envoi..." : "Email"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditDocumentId(doc.id)}
                         >
                           Éditer
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
+                          disabled={deleteDocument.isPending}
                           onClick={() => {
                             if (confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
-                              toast.info("Suppression à venir");
+                              deleteDocument.mutate({ id: doc.id });
                             }
                           }}
                         >
-                          Supprimer
+                          {deleteDocument.isPending ? "Suppression..." : "Supprimer"}
                         </Button>
                       </div>
                     </div>
@@ -273,7 +376,7 @@ export default function Documents() {
         )}
       </div>
 
-      {/* Dialog formulaire */}
+      {/* Dialog formulaire création */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent className="w-screen h-screen max-w-none max-h-none overflow-y-auto p-6">
           <DialogHeader>
@@ -283,6 +386,22 @@ export default function Documents() {
             onSuccess={() => setShowForm(false)}
             onCancel={() => setShowForm(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog formulaire édition */}
+      <Dialog open={editDocumentId !== null} onOpenChange={(open) => !open && setEditDocumentId(null)}>
+        <DialogContent className="w-screen h-screen max-w-none max-h-none overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Éditer le document</DialogTitle>
+          </DialogHeader>
+          {editDocumentId && (
+            <DocumentEditForm
+              documentId={editDocumentId}
+              onSuccess={() => setEditDocumentId(null)}
+              onCancel={() => setEditDocumentId(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>

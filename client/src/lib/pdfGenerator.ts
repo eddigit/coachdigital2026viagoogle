@@ -247,3 +247,9 @@ export function downloadDocumentPDF(data: DocumentData, filename?: string) {
   const defaultFilename = `${data.type === "quote" ? "devis" : "facture"}_${data.number}.pdf`;
   doc.save(filename || defaultFilename);
 }
+
+export function getDocumentPDFBase64(data: DocumentData): string {
+  const doc = generateDocumentPDF(data);
+  // Retourne le PDF en base64 (sans le préfixe data:application/pdf;base64,)
+  return doc.output("datauristring").split(",")[1];
+}
