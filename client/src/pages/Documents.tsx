@@ -42,63 +42,65 @@ export default function Documents() {
     return clients?.find((c) => c.id === clientId);
   };
 
-  const handleDownloadPDF = async (docId: number) => {
-    const doc = documents?.find((d) => d.id === docId);
-    if (!doc || !companyData) {
-      toast.error("Impossible de générer le PDF");
-      return;
+  const handleDownloadPDF = (docId: number) => {
+    try {
+      const doc = documents?.find((d) => d.id === docId);
+      if (!doc || !companyData) {
+        toast.error("Impossible de générer le PDF");
+        return;
+      }
+
+      const client = getClient(doc.clientId);
+      if (!client) {
+        toast.error("Client introuvable");
+        return;
+      }
+
+      // Préparer les données pour le PDF avec les données du document
+      const pdfData = {
+        type: doc.type as "quote" | "invoice",
+        number: doc.number,
+        date: new Date(doc.date),
+        dueDate: doc.dueDate ? new Date(doc.dueDate) : undefined,
+        company: {
+          name: companyData.name,
+          address: companyData.address || null,
+          city: companyData.city || null,
+          postalCode: companyData.postalCode || null,
+          country: companyData.country || null,
+          phone: companyData.phone || null,
+          email: companyData.email || null,
+          siret: companyData.siret || null,
+          tvaNumber: companyData.tvaNumber || null,
+          iban: companyData.iban || null,
+          bic: companyData.bic || null,
+        },
+        client: {
+          name: `${client.firstName} ${client.lastName}`,
+          email: client.email || null,
+          phone: client.phone || null,
+          address: client.address || null,
+          city: client.city || null,
+          postalCode: client.postalCode || null,
+          country: client.country || null,
+          company: client.company || null,
+        },
+        lines: (doc as any).lines?.map((line: any) => ({
+          description: line.description,
+          quantity: parseFloat(line.quantity || "0"),
+          unitPrice: parseFloat(line.unitPriceHt || "0"),
+          vatRate: parseFloat(line.tvaRate || "0"),
+        })) || [],
+        notes: doc.notes || undefined,
+        legalMentions: companyData.legalMentions || undefined,
+      };
+
+      downloadDocumentPDF(pdfData);
+      toast.success("PDF généré avec succès");
+    } catch (error) {
+      console.error("Erreur PDF:", error);
+      toast.error("Erreur lors de la génération du PDF");
     }
-
-    const client = getClient(doc.clientId);
-    if (!client) {
-      toast.error("Client introuvable");
-      return;
-    }
-
-    // Récupérer les lignes du document
-    const docDetails = await trpc.documents.get.useQuery({ id: docId });
-    
-    // Préparer les données pour le PDF
-    const pdfData = {
-      type: doc.type as "quote" | "invoice",
-      number: doc.number,
-      date: new Date(doc.date),
-      dueDate: doc.dueDate ? new Date(doc.dueDate) : undefined,
-      company: {
-        name: companyData.name,
-        address: companyData.address || null,
-        city: companyData.city || null,
-        postalCode: companyData.postalCode || null,
-        country: companyData.country || null,
-        phone: companyData.phone || null,
-        email: companyData.email || null,
-        siret: companyData.siret || null,
-        tvaNumber: companyData.tvaNumber || null,
-        iban: companyData.iban || null,
-        bic: companyData.bic || null,
-      },
-      client: {
-        name: `${client.firstName} ${client.lastName}`,
-        email: client.email || null,
-        phone: client.phone || null,
-        address: client.address || null,
-        city: client.city || null,
-        postalCode: client.postalCode || null,
-        country: client.country || null,
-        company: client.company || null,
-      },
-      lines: docDetails.data?.lines?.map((line) => ({
-        description: line.description,
-        quantity: parseFloat(line.quantity || "0"),
-        unitPrice: parseFloat(line.unitPriceHt || "0"),
-        vatRate: parseFloat(line.tvaRate || "0"),
-      })) || [],
-      notes: doc.notes || undefined,
-      legalMentions: companyData.legalMentions || undefined,
-    };
-
-    downloadDocumentPDF(pdfData);
-    toast.success("PDF téléchargé avec succès");
   };
 
   const getStatusBadge = (status: string) => {
