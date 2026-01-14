@@ -196,6 +196,24 @@ export default function Documents() {
                           <Download className="h-4 w-4 mr-2" />
                           PDF
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.info("Édition à venir")}
+                        >
+                          Éditer
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            if (confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) {
+                              toast.info("Suppression à venir");
+                            }
+                          }}
+                        >
+                          Supprimer
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
