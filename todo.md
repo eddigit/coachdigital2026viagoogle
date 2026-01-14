@@ -850,4 +850,4 @@
 - [x] Édition de documents (charger données dans formulaire + mutation update)
 - [x] Envoi de documents par email (PDF en pièce jointe au client)
 - [x] Vérification complète du projet
-- [ ] Push final vers GitHub après corrections
+- [x] Push final vers GitHub après corrections
