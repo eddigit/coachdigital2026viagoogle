@@ -16,6 +16,7 @@ import { downloadDocumentPDF, getDocumentPDFBase64 } from "@/lib/pdfGenerator";
 import { FileText, Download, Plus, Eye, ArrowRight, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { ExportButton } from "@/components/ExportCSV";
+import { DocumentActions, DocumentViewsNotifications } from "@/components/DocumentActions";
 
 export default function Documents() {
   const utils = trpc.useUtils();
@@ -272,7 +273,14 @@ export default function Documents() {
                           <p className="text-sm text-muted-foreground">{doc.subject}</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <DocumentActions
+                          documentId={doc.id}
+                          documentNumber={doc.number}
+                          documentType={doc.type as "quote" | "invoice" | "credit_note"}
+                          clientName={client ? `${client.firstName} ${client.lastName}` : ""}
+                          clientEmail={client?.email}
+                        />
                         {doc.type === "quote" && doc.status === "accepted" && (
                           <Button
                             size="sm"

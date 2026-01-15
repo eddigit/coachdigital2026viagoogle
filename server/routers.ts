@@ -27,6 +27,7 @@ import { smtpRouter } from "./smtpRouter";
 import { reviewsRouter } from "./reviewsRouter";
 import { exportRouter } from "./exportRouter";
 import { remindersRouter } from "./remindersRouter";
+import { documentTrackingRouter, signatureRouter } from "./documentSignatureRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -117,6 +118,8 @@ export const appRouter = router({
   reviews: reviewsRouter,
   export: exportRouter,
   reminders: remindersRouter,
+  documentTracking: documentTrackingRouter,
+  signatures: signatureRouter,
   
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

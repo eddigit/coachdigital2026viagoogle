@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import RemindersWidget from "@/components/RemindersWidget";
+import { DocumentViewsNotifications } from "@/components/DocumentActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Users, Briefcase, CheckSquare, Euro } from "lucide-react";
@@ -125,6 +126,9 @@ export default function Home() {
 
         {/* Widget Rappels */}
         <RemindersWidget />
+
+        {/* Activité documents (vues et signatures) */}
+        <DocumentViewsNotifications />
 
         {/* Tableau de bord analytique */}
         <AnalyticsDashboard />

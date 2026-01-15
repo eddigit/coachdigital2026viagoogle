@@ -26,6 +26,8 @@ import Reviews from "./pages/Reviews";
 import ClientLogin from "./pages/client/ClientLogin";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientInvitation from "./pages/client/Invitation";
+import SignDocument from "./pages/SignDocument";
+import ViewDocument from "./pages/ViewDocument";
 import { usePWA } from "./hooks/usePWA";
 import InstallPWABanner from "./components/InstallPWABanner";
 import NotificationPermissionPrompt from "./components/NotificationPermissionPrompt";
@@ -58,6 +60,10 @@ function Router() {
       <Route path="/client/dashboard" component={ClientDashboard} />
       <Route path="/client/invitation/:token" component={ClientInvitation} />
       <Route path="/client" component={ClientLogin} />
+      
+      {/* Routes documents publiques */}
+      <Route path="/sign/:token" component={SignDocument} />
+      <Route path="/view/:token" component={ViewDocument} />
       
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

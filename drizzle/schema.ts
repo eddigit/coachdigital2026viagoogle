@@ -751,3 +751,66 @@ export const reviews = mysqlTable("reviews", {
 
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
+
+// ============================================================================
+// DOCUMENT TRACKING (Suivi ouverture documents)
+// ============================================================================
+
+export const documentTracking = mysqlTable("documentTracking", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull(),
+  trackingToken: varchar("trackingToken", { length: 64 }).notNull().unique(),
+  viewCount: int("viewCount").default(0).notNull(),
+  firstViewedAt: timestamp("firstViewedAt"),
+  lastViewedAt: timestamp("lastViewedAt"),
+  viewerIp: varchar("viewerIp", { length: 45 }),
+  viewerUserAgent: text("viewerUserAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type DocumentTracking = typeof documentTracking.$inferSelect;
+export type InsertDocumentTracking = typeof documentTracking.$inferInsert;
+
+// ============================================================================
+// DOCUMENT VIEWS (Historique détaillé des vues)
+// ============================================================================
+
+export const documentViews = mysqlTable("documentViews", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull(),
+  trackingId: int("trackingId").notNull(),
+  viewedAt: timestamp("viewedAt").defaultNow().notNull(),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  duration: int("duration"),
+});
+
+export type DocumentView = typeof documentViews.$inferSelect;
+export type InsertDocumentView = typeof documentViews.$inferInsert;
+
+// ============================================================================
+// DOCUMENT SIGNATURES (Signatures électroniques)
+// ============================================================================
+
+export const documentSignatures = mysqlTable("documentSignatures", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("documentId").notNull(),
+  signatureToken: varchar("signatureToken", { length: 64 }).notNull().unique(),
+  signerName: varchar("signerName", { length: 255 }).notNull(),
+  signerEmail: varchar("signerEmail", { length: 320 }).notNull(),
+  signerRole: mysqlEnum("signerRole", ["client", "coach"]).default("client").notNull(),
+  status: mysqlEnum("status", ["pending", "signed", "declined", "expired"]).default("pending").notNull(),
+  signatureData: text("signatureData"),
+  signedAt: timestamp("signedAt"),
+  signedIp: varchar("signedIp", { length: 45 }),
+  signedUserAgent: text("signedUserAgent"),
+  declinedReason: text("declinedReason"),
+  expiresAt: timestamp("expiresAt"),
+  reminderSentAt: timestamp("reminderSentAt"),
+  reminderCount: int("reminderCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DocumentSignature = typeof documentSignatures.$inferSelect;
+export type InsertDocumentSignature = typeof documentSignatures.$inferInsert;
