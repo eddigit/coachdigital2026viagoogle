@@ -239,7 +239,7 @@ function DashboardLayoutContent({
 
       <SidebarInset className="overflow-x-hidden max-w-full">
         {/* Header avec profil en haut à droite */}
-        <div className="flex border-b h-14 items-center justify-between bg-background/95 px-3 sm:px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40 max-w-full">
+        <div className="flex h-14 items-center justify-between bg-background/95 px-3 sm:px-4 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40 max-w-full">
           <div className="flex items-center gap-4 flex-1">
             {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />}
             <div className="flex items-center gap-3">
