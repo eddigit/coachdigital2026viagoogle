@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import RemindersWidget from "@/components/RemindersWidget";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Users, Briefcase, CheckSquare, Euro } from "lucide-react";
@@ -121,6 +122,9 @@ export default function Home() {
             </Card>
           </div>
         )}
+
+        {/* Widget Rappels */}
+        <RemindersWidget />
 
         {/* Tableau de bord analytique */}
         <AnalyticsDashboard />

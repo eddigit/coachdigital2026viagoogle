@@ -22,6 +22,8 @@ import {
   projectRequirements,
   reviews,
   InsertReview,
+  clientRequests,
+  InsertClientRequest,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -596,26 +598,66 @@ export async function createClientRequest(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Créer une entrée dans clientRequests (table à créer)
-  // Pour l'instant, on retourne un ID fictif
-  // TODO: Créer la table clientRequests dans le schéma
-  return 1;
+  const result = await db.insert(clientRequests).values({
+    clientId: data.clientId,
+    requestType: data.requestType as "coaching" | "website" | "app" | "ia_integration" | "optimization" | "other",
+    title: data.title,
+    description: data.description + (data.context ? `\n\nContexte: ${data.context}` : ""),
+    budget: String(data.budget),
+    deadline: new Date(data.deadline),
+    priority: data.priority as "low" | "medium" | "high" | "urgent",
+    status: "pending",
+  });
+
+  return Number(result[0].insertId);
 }
 
 export async function getAllClientRequests() {
   const db = await getDb();
   if (!db) return [];
 
-  // TODO: Implémenter quand la table sera créée
-  return [];
+  return await db
+    .select()
+    .from(clientRequests)
+    .orderBy(desc(clientRequests.createdAt));
 }
 
 export async function getClientRequestById(id: number) {
   const db = await getDb();
   if (!db) return null;
 
-  // TODO: Implémenter quand la table sera créée
-  return null;
+  const result = await db
+    .select()
+    .from(clientRequests)
+    .where(eq(clientRequests.id, id))
+    .limit(1);
+
+  return result[0] || null;
+}
+
+export async function getClientRequestsByClientId(clientId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(clientRequests)
+    .where(eq(clientRequests.clientId, clientId))
+    .orderBy(desc(clientRequests.createdAt));
+}
+
+export async function updateClientRequest(id: number, data: {
+  status?: "pending" | "in_review" | "accepted" | "in_progress" | "completed" | "rejected";
+  adminNotes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(clientRequests)
+    .set(data)
+    .where(eq(clientRequests.id, id));
+
+  return true;
 }
 
 // ============================================================================

@@ -27,8 +27,10 @@ import {
   Upload,
   Send,
   CheckSquare,
+  Download,
 } from "lucide-react";
 import Papa from "papaparse";
+import { ExportButton } from "@/components/ExportCSV";
 
 type ViewMode = "list" | "cards" | "kanban";
 type LeadStatus = "suspect" | "prospect" | "analyse" | "negociation" | "conclusion" | "ordre";
@@ -191,6 +193,8 @@ export default function Leads() {
                 />
               </DialogContent>
             </Dialog>
+
+            <ExportButton type="leads" label="Exporter" />
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>

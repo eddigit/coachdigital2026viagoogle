@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Plus, Search, Mail, Phone, Building, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Mail, Phone, Building, Pencil, Trash2, Download } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import ImageUpload from "@/components/ImageUpload";
+import { ExportButton } from "@/components/ExportCSV";
 import { toast } from "sonner";
 
 export default function Clients() {
@@ -155,16 +156,18 @@ export default function Clients() {
             <p className="text-muted-foreground">Gérez vos clients et prospects</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) setEditingClient(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Nouveau Client
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <ExportButton type="clients" label="Exporter" />
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) setEditingClient(null);
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouveau Client
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -328,6 +331,7 @@ export default function Clients() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="relative">

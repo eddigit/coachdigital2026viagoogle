@@ -15,6 +15,7 @@ import { DocumentEditForm } from "@/components/DocumentEditForm";
 import { downloadDocumentPDF, getDocumentPDFBase64 } from "@/lib/pdfGenerator";
 import { FileText, Download, Plus, Eye, ArrowRight, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { ExportButton } from "@/components/ExportCSV";
 
 export default function Documents() {
   const utils = trpc.useUtils();
@@ -241,10 +242,13 @@ export default function Documents() {
             <h1 className="text-3xl font-bold">Documents</h1>
             <p className="text-muted-foreground">Devis et factures</p>
           </div>
-          <Button onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Document
-          </Button>
+          <div className="flex gap-2">
+            <ExportButton type="documents" label="Exporter" />
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau Document
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

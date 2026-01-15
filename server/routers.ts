@@ -25,6 +25,8 @@ import { emailCampaignsRouter } from "./emailCampaignsRouter";
 import { emailTrackingRouter } from "./emailTrackingRouter";
 import { smtpRouter } from "./smtpRouter";
 import { reviewsRouter } from "./reviewsRouter";
+import { exportRouter } from "./exportRouter";
+import { remindersRouter } from "./remindersRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -113,6 +115,8 @@ export const appRouter = router({
   emailTracking: emailTrackingRouter,
   notes: notesRouter,
   reviews: reviewsRouter,
+  export: exportRouter,
+  reminders: remindersRouter,
   
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
