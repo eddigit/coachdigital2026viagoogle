@@ -399,24 +399,8 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const documentId = await db.createDocument(input);
         
-        // Récupérer le document créé pour la notification
-        const document = await db.getDocumentById(documentId);
-        if (document) {
-          // Récupérer les infos client
-          const client = await db.getClientById(input.clientId);
-          if (client && client.email) {
-            // Envoyer notification
-            await notifyDocumentCreated({
-              clientEmail: client.email,
-              clientName: `${client.firstName} ${client.lastName}`,
-              documentType: input.type as "quote" | "invoice",
-              documentNumber: document.number,
-              totalTtc: document.totalTtc,
-              dueDate: document.dueDate ? new Date(document.dueDate) : undefined,
-              loginUrl: getClientLoginUrl(),
-            });
-          }
-        }
+        // Les notifications automatiques sont désactivées
+        // L'envoi d'emails se fait manuellement via le bouton "Envoyer par email"
         
         return documentId;
       }),
@@ -481,19 +465,8 @@ export const appRouter = router({
           })),
         });
         
-        // Récupérer la facture créée pour la notification
-        const invoice = await db.getDocumentById(invoiceId);
-        if (invoice) {
-          const client = await db.getClientById(quote.clientId);
-          if (client) {
-            await notifyQuoteConverted({
-              clientName: `${client.firstName} ${client.lastName}`,
-              quoteNumber: quote.number,
-              invoiceNumber: invoice.number,
-              totalTtc: invoice.totalTtc,
-            });
-          }
-        }
+        // Les notifications automatiques sont désactivées
+        // L'envoi d'emails se fait manuellement via le bouton "Envoyer par email"
         
         return { success: true, invoiceId };
       }),

@@ -50,33 +50,33 @@
 /* ===== COACH DIGITAL PARIS - IDENTITÉ VISUELLE ===== */
 :root {
   --radius: 4px;
-  /* Dark theme - Navy profond */
-  --background: oklch(0.12 0.02 250);
-  --foreground: oklch(0.98 0.005 250);
-  --card: oklch(0.16 0.025 250);
-  --card-foreground: oklch(0.98 0.005 250);
-  --popover: oklch(0.14 0.02 250);
-  --popover-foreground: oklch(0.98 0.005 250);
+  /* Dark theme - Gris ardoise doux (moins noir) */
+  --background: oklch(0.18 0.015 250);
+  --foreground: oklch(0.95 0.005 250);
+  --card: oklch(0.22 0.018 250);
+  --card-foreground: oklch(0.95 0.005 250);
+  --popover: oklch(0.20 0.015 250);
+  --popover-foreground: oklch(0.95 0.005 250);
   /* Primary - Orange Coach Digital #E67E50 */
   --primary: oklch(0.70 0.12 45);
   --primary-foreground: oklch(0.98 0.005 250);
   --sidebar-primary: oklch(0.70 0.12 45);
   --sidebar-primary-foreground: oklch(0.98 0.005 250);
-  /* Secondary - Gris foncé */
-  --secondary: oklch(0.20 0.015 250);
+  /* Secondary - Gris moyen doux */
+  --secondary: oklch(0.28 0.012 250);
   --secondary-foreground: oklch(0.90 0.01 250);
-  /* Muted - Gris moyen */
-  --muted: oklch(0.18 0.015 250);
-  --muted-foreground: oklch(0.60 0.01 250);
+  /* Muted - Gris intermédiaire */
+  --muted: oklch(0.25 0.012 250);
+  --muted-foreground: oklch(0.65 0.01 250);
   /* Accent - Orange plus clair */
   --accent: oklch(0.75 0.12 45);
   --accent-foreground: oklch(0.98 0.005 250);
   /* Destructive */
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.98 0.005 250);
-  /* Border & Input */
-  --border: oklch(0.25 0.015 250);
-  --input: oklch(0.25 0.015 250);
+  /* Border & Input - Plus visible */
+  --border: oklch(0.32 0.015 250);
+  --input: oklch(0.32 0.015 250);
   --ring: oklch(0.70 0.12 45);
   /* Chart colors - Palette orange/neutre */
   --chart-1: oklch(0.70 0.12 45);
@@ -84,12 +84,12 @@
   --chart-3: oklch(0.60 0.08 40);
   --chart-4: oklch(0.55 0.06 35);
   --chart-5: oklch(0.50 0.04 30);
-  /* Sidebar */
-  --sidebar: oklch(0.14 0.02 250);
-  --sidebar-foreground: oklch(0.95 0.01 250);
-  --sidebar-accent: oklch(0.22 0.02 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 250);
-  --sidebar-border: oklch(0.18 0.015 250);
+  /* Sidebar - Plus clair */
+  --sidebar: oklch(0.20 0.015 250);
+  --sidebar-foreground: oklch(0.92 0.01 250);
+  --sidebar-accent: oklch(0.28 0.018 250);
+  --sidebar-accent-foreground: oklch(0.92 0.01 250);
+  --sidebar-border: oklch(0.26 0.012 250);
   --sidebar-ring: oklch(0.70 0.12 45);
 }
 
@@ -124,23 +124,23 @@
     @apply cursor-pointer;
   }
   
-  /* Scrollbar dark theme */
+  /* Scrollbar dark theme - Plus douce */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   
   ::-webkit-scrollbar-track {
-    background: oklch(0.15 0.02 250);
+    background: oklch(0.22 0.015 250);
   }
   
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.30 0.04 250);
+    background: oklch(0.38 0.02 250);
     border-radius: 4px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.40 0.06 250);
+    background: oklch(0.48 0.03 250);
   }
   
   /* Focus states - Orange Coach Digital */
