@@ -387,7 +387,7 @@ export function EmailTemplateEditor({
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`max-w-2xl mx-auto min-h-[400px] bg-white rounded-lg shadow p-4 ${
+                    className={`max-w-2xl mx-auto min-h-[400px] bg-gray-50 rounded-lg shadow p-4 border-2 border-dashed border-gray-300 ${
                       snapshot.isDraggingOver ? "ring-2 ring-primary" : ""
                     }`}
                   >
@@ -428,12 +428,12 @@ export function EmailTemplateEditor({
                               {/* Rendu du bloc selon son type */}
                               <div className="pl-6">
                                 {block.type === "header" && (
-                                  <div style={{ textAlign: block.content.align || "center" }}>
-                                    <span className="text-xl font-bold">{block.content.text}</span>
+                                  <div style={{ textAlign: block.content.align || "center" }} className="bg-white p-3 rounded border">
+                                    <span className="text-xl font-bold text-gray-900">{block.content.text}</span>
                                   </div>
                                 )}
                                 {block.type === "text" && (
-                                  <p style={{ textAlign: block.content.align || "left" }}>{block.content.text}</p>
+                                  <p style={{ textAlign: block.content.align || "left" }} className="bg-white p-3 rounded border text-gray-900">{block.content.text}</p>
                                 )}
                                 {block.type === "image" && (
                                   <div className="text-center">
