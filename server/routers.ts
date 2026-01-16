@@ -564,7 +564,16 @@ export const appRouter = router({
         priority: z.enum(["basse", "moyenne", "haute", "urgente"]),
       }))
       .mutation(async ({ input }) => {
-        const id = await db.createClientRequest(input);
+        const id = await db.createClientRequest({
+          clientId: 0, // Demande publique sans client
+          requestType: input.type,
+          title: input.title,
+          description: input.description,
+          context: input.context,
+          budget: input.budget,
+          deadline: input.deadline,
+          priority: input.priority,
+        });
         
         // Envoyer notification email au coach
         try {

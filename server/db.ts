@@ -587,7 +587,8 @@ export async function getStats() {
 // ============================================================================
 
 export async function createClientRequest(data: {
-  type: string;
+  clientId: number;
+  requestType: string;
   title: string;
   description: string;
   context?: string;

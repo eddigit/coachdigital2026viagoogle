@@ -94,8 +94,8 @@ export default function Leads() {
   const changePhaseForLeadsMutation = trpc.audiences.changePhaseForLeads.useMutation();
 
   // Extraire les audiences et sources uniques
-  const uniqueAudiences = [...new Set(leads.map((l: any) => l.audience || "general").filter(Boolean))];
-  const uniqueSources = [...new Set(leads.map((l: any) => l.source).filter(Boolean))];
+  const uniqueAudiences = Array.from(new Set(leads.map((l: any) => l.audience || "general").filter(Boolean)));
+  const uniqueSources = Array.from(new Set(leads.map((l: any) => l.source).filter(Boolean)));
 
   // Filtrer les leads
   const filteredLeads = leads.filter((lead: any) => {

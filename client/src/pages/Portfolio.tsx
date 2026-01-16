@@ -55,8 +55,8 @@ type Lead = {
   source: string | null;
   notes: string | null;
   isActivated: boolean;
-  activatedAt: string | null;
-  createdAt: string;
+  activatedAt: Date | string | null;
+  createdAt: Date | string;
 };
 
 const SPANCO_PHASES: { id: LeadStatus; label: string; color: string }[] = [

@@ -70,7 +70,7 @@ type Lead = {
   source: string | null;
   score: number;
   isActivated: boolean;
-  createdAt: string;
+  createdAt: Date | string;
 };
 
 export default function LeadsBase() {
@@ -120,8 +120,8 @@ export default function LeadsBase() {
     },
   });
 
-  const leads = leadsData?.leads || [];
-  const totalLeads = leadsData?.total || 0;
+  const leads = leadsData?.data || [];
+  const totalLeads = leadsData?.pagination?.total || 0;
   const totalPages = Math.ceil(totalLeads / itemsPerPage);
   const uniqueSources = filtersData?.sources || [];
 
@@ -556,19 +556,39 @@ function ImportCSVForm({ onSuccess }: { onSuccess: () => void }) {
     setProgress(0);
 
     const lines = csvContent.trim().split("\n");
-    const chunkSize = 5000;
-    const totalChunks = Math.ceil(lines.length / chunkSize);
+    const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+    const dataLines = lines.slice(1);
+    
+    // Parser le CSV en tableau de leads
+    const parsedLeads = dataLines.map(line => {
+      const values = line.split(",").map(v => v.trim());
+      const lead: any = {
+        firstName: values[header.indexOf("firstname")] || values[header.indexOf("prenom")] || "Inconnu",
+        lastName: values[header.indexOf("lastname")] || values[header.indexOf("nom")] || "Inconnu",
+      };
+      const emailIdx = header.indexOf("email");
+      if (emailIdx >= 0 && values[emailIdx]) lead.email = values[emailIdx];
+      const phoneIdx = header.indexOf("phone") >= 0 ? header.indexOf("phone") : header.indexOf("telephone");
+      if (phoneIdx >= 0 && values[phoneIdx]) lead.phone = values[phoneIdx];
+      const companyIdx = header.indexOf("company") >= 0 ? header.indexOf("company") : header.indexOf("entreprise");
+      if (companyIdx >= 0 && values[companyIdx]) lead.company = values[companyIdx];
+      const positionIdx = header.indexOf("position") >= 0 ? header.indexOf("position") : header.indexOf("poste");
+      if (positionIdx >= 0 && values[positionIdx]) lead.position = values[positionIdx];
+      const sourceIdx = header.indexOf("source");
+      if (sourceIdx >= 0 && values[sourceIdx]) lead.source = values[sourceIdx];
+      return lead;
+    }).filter(l => l.firstName && l.lastName);
+
+    const chunkSize = 500;
+    const totalChunks = Math.ceil(parsedLeads.length / chunkSize);
 
     try {
       for (let i = 0; i < totalChunks; i++) {
-        const chunk = lines.slice(i * chunkSize, (i + 1) * chunkSize).join("\n");
-        await importMutation.mutateAsync({
-          csvContent: chunk,
-          defaultAudience: defaultAudience || undefined,
-        });
+        const chunk = parsedLeads.slice(i * chunkSize, (i + 1) * chunkSize);
+        await importMutation.mutateAsync({ leads: chunk });
         setProgress(Math.round(((i + 1) / totalChunks) * 100));
       }
-      toast.success("Import terminé avec succès");
+      toast.success(`Import terminé: ${parsedLeads.length} leads importés`);
       onSuccess();
     } catch (error) {
       toast.error("Erreur lors de l'import");
