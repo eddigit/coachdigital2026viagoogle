@@ -79,6 +79,7 @@ export default function LeadsBase() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const itemsPerPage = 50;
@@ -365,7 +366,7 @@ export default function LeadsBase() {
                 toast.error("Sélectionnez au moins un lead");
                 return;
               }
-              toast.info("Fonctionnalité d'envoi d'email en cours de développement");
+              setShowEmailDialog(true);
             }}
           >
             <Send className="h-4 w-4 mr-2" />
@@ -542,6 +543,21 @@ export default function LeadsBase() {
         </div>
       </div>
       </div>
+
+      {/* Dialog Envoi Email */}
+      {showEmailDialog && (
+        <EmailDialog
+          leadIds={selectedLeads}
+          onClose={() => {
+            setShowEmailDialog(false);
+            setSelectedLeads([]);
+          }}
+          onSuccess={() => {
+            setShowEmailDialog(false);
+            setSelectedLeads([]);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
@@ -801,5 +817,115 @@ function AddLeadForm({
         {createMutation.isPending ? "Création..." : "Créer le lead"}
       </Button>
     </form>
+  );
+}
+
+// Composant EmailDialog
+function EmailDialog({
+  leadIds,
+  onClose,
+  onSuccess,
+}: {
+  leadIds: number[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  const { data: templates = [] } = trpc.emailTemplates.list.useQuery();
+  const sendEmailMutation = trpc.leads.sendEmail.useMutation({
+    onSuccess: () => {
+      toast.success(`Email envoyé à ${leadIds.length} lead(s)`);
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  const handleTemplateSelect = (templateId: number) => {
+    const template = templates.find((t: any) => t.id === templateId);
+    if (template) {
+      setSelectedTemplate(templateId);
+      setSubject(template.subject);
+      setBody(template.body);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!subject || !body) {
+      toast.error("Sujet et corps requis");
+      return;
+    }
+
+    for (const leadId of leadIds) {
+      await sendEmailMutation.mutateAsync({
+        leadId,
+        templateId: selectedTemplate || undefined,
+        subject,
+        body,
+      });
+    }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Envoyer un email à {leadIds.length} lead(s)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Template (optionnel)</Label>
+            <Select
+              value={selectedTemplate?.toString() || ""}
+              onValueChange={(v) => handleTemplateSelect(Number(v))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choisir un template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template: any) => (
+                  <SelectItem key={template.id} value={template.id.toString()}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Sujet *</Label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Sujet de l'email"
+            />
+          </div>
+          <div>
+            <Label>Corps *</Label>
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={10}
+              placeholder="Corps de l'email (utilisez {{firstName}} pour personnaliser)"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={sendEmailMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {sendEmailMutation.isPending ? "Envoi..." : "Envoyer"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
