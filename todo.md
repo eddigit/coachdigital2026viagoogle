@@ -934,3 +934,16 @@
 - [x] Améliorer avec bloc colonnes 2 colonnes
 - [x] Ajouter bloc social (liens réseaux sociaux)
 - [x] Ajouter bloc signature personnalisée
+
+
+## Gestion des Leads (33 000 contacts)
+- [x] Ajouter menu "Leads" dédié dans la sidebar (séparé de Prospection)
+- [x] Classification par audience (champ audience ajouté à la DB)
+- [x] Filtres avancés : audience, phase SPANCO, source
+- [x] Pagination optimisée pour 33 000 contacts (50 par page)
+- [x] Vue liste avec colonnes
+- [x] Recherche rapide par nom, email, entreprise
+- [x] API listPaginated avec filtres côté serveur
+- [x] API getFilters pour audiences/sources uniques
+- [ ] Actions en masse (changer phase, assigner audience, supprimer)
+- [ ] Export filtré en CSV

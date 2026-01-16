@@ -208,6 +208,8 @@ export const leads = mysqlTable("leads", {
   avatarUrl: varchar("avatarUrl", { length: 500 }),
   // Score d'engagement (0-100)
   score: int("score").default(0).notNull(),
+  // Audience / Segment
+  audience: varchar("audience", { length: 100 }).default("general"),
   // Conversion
   convertedToClientId: int("convertedToClientId"),
   convertedAt: timestamp("convertedAt"),

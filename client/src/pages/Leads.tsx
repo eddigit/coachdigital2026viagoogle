@@ -56,9 +56,13 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
 const STATUS_ORDER: LeadStatus[] = ["suspect", "prospect", "analyse", "negociation", "conclusion", "ordre"];
 
 export default function Leads() {
-  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [audienceFilter, setAudienceFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 50;
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
@@ -78,15 +82,29 @@ export default function Leads() {
   const updateStatusMutation = trpc.leads.updateStatus.useMutation();
   const convertToClientMutation = trpc.leads.convertToClient.useMutation();
 
+  // Extraire les audiences et sources uniques
+  const uniqueAudiences = [...new Set(leads.map((l: any) => l.audience || "general").filter(Boolean))];
+  const uniqueSources = [...new Set(leads.map((l: any) => l.source).filter(Boolean))];
+
   // Filtrer les leads
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = leads.filter((lead: any) => {
     const matchesSearch =
       lead.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (lead.company || "").toLowerCase().includes(searchQuery.toLowerCase());
+      (lead.company || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (lead.email || "").toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesAudience = audienceFilter === "all" || (lead.audience || "general") === audienceFilter;
+    const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
+    return matchesSearch && matchesStatus && matchesAudience && matchesSource;
   });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE);
+  const paginatedLeads = filteredLeads.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Grouper les leads par statut pour le Kanban (SPANCO)
   const leadsByStatus: Record<LeadStatus, any[]> = {
@@ -264,17 +282,41 @@ export default function Leads() {
             />
           </div>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as LeadStatus | "all")}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Phase" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="all">Toutes les phases</SelectItem>
               <SelectItem value="suspect">Suspect</SelectItem>
               <SelectItem value="prospect">Prospect</SelectItem>
               <SelectItem value="analyse">Analyse</SelectItem>
               <SelectItem value="negociation">Négociation</SelectItem>
               <SelectItem value="conclusion">Conclusion</SelectItem>
               <SelectItem value="ordre">Prise d'Ordre</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={audienceFilter} onValueChange={setAudienceFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Audience" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les audiences</SelectItem>
+              {uniqueAudiences.map((audience: string) => (
+                <SelectItem key={audience} value={audience}>
+                  {audience === "general" ? "Général" : audience}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les sources</SelectItem>
+              {uniqueSources.map((source: string) => (
+                <SelectItem key={source} value={source}>{source}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <div className="flex gap-2">
@@ -302,10 +344,40 @@ export default function Leads() {
           </div>
         </div>
 
+        {/* Compteur et pagination */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {filteredLeads.length} lead{filteredLeads.length > 1 ? "s" : ""} trouvé{filteredLeads.length > 1 ? "s" : ""}
+            {audienceFilter !== "all" && ` dans l'audience "${audienceFilter}"`}
+            {statusFilter !== "all" && ` en phase "${STATUS_LABELS[statusFilter as LeadStatus]}"`}
+          </span>
+          {totalPages > 1 && viewMode === "list" && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+              >
+                Précédent
+              </Button>
+              <span>Page {currentPage} / {totalPages}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Suivant
+              </Button>
+            </div>
+          )}
+        </div>
+
         {/* Affichage selon le mode */}
         {viewMode === "list" && (
           <ListView
-            leads={filteredLeads}
+            leads={paginatedLeads}
             onConvert={handleConvertToClient}
             onRefetch={refetch}
             onSendEmail={handleOpenEmailDialog}

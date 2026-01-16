@@ -37,6 +37,86 @@ export const leadsRouter = router({
       .orderBy(desc(leads.createdAt));
   }),
 
+  // Lister les leads avec pagination et filtres (optimisé pour 30 000+ contacts)
+  listPaginated: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().min(1).default(1),
+        limit: z.number().min(10).max(100).default(50),
+        status: z.enum(["all", "suspect", "prospect", "analyse", "negociation", "conclusion", "ordre"]).default("all"),
+        audience: z.string().optional(),
+        source: z.string().optional(),
+        search: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const offset = (input.page - 1) * input.limit;
+      let conditions: any[] = [];
+
+      if (input.status !== "all") {
+        conditions.push(eq(leads.status, input.status));
+      }
+      if (input.audience && input.audience !== "all") {
+        conditions.push(eq(leads.audience, input.audience));
+      }
+      if (input.source && input.source !== "all") {
+        conditions.push(eq(leads.source, input.source));
+      }
+      if (input.search) {
+        const searchTerm = `%${input.search}%`;
+        conditions.push(
+          sql`(${leads.firstName} LIKE ${searchTerm} OR ${leads.lastName} LIKE ${searchTerm} OR ${leads.email} LIKE ${searchTerm} OR ${leads.company} LIKE ${searchTerm})`
+        );
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const [data, countResult] = await Promise.all([
+        db
+          .select()
+          .from(leads)
+          .where(whereClause)
+          .orderBy(desc(leads.createdAt))
+          .limit(input.limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(leads)
+          .where(whereClause),
+      ]);
+
+      const total = Number(countResult[0]?.count || 0);
+
+      return {
+        data,
+        pagination: {
+          page: input.page,
+          limit: input.limit,
+          total,
+          totalPages: Math.ceil(total / input.limit),
+        },
+      };
+    }),
+
+  // Obtenir les audiences et sources uniques
+  getFilters: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+
+    const [audiences, sources] = await Promise.all([
+      db.selectDistinct({ audience: leads.audience }).from(leads).where(sql`${leads.audience} IS NOT NULL`),
+      db.selectDistinct({ source: leads.source }).from(leads).where(sql`${leads.source} IS NOT NULL`),
+    ]);
+
+    return {
+      audiences: audiences.map((a) => a.audience).filter(Boolean) as string[],
+      sources: sources.map((s) => s.source).filter(Boolean) as string[],
+    };
+  }),
+
   // Lister les leads par statut
   listByStatus: protectedProcedure
     .input(
