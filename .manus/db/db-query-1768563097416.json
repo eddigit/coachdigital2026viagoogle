@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS documentTracking (\n  id int AUTO_INCREMENT NOT NULL,\n  documentId int NOT NULL,\n  trackingToken varchar(64) NOT NULL,\n  viewCount int NOT NULL DEFAULT 0,\n  firstViewedAt timestamp NULL,\n  lastViewedAt timestamp NULL,\n  viewerIp varchar(45) NULL,\n  viewerUserAgent text NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY(id),\n  UNIQUE KEY documentTracking_trackingToken_unique (trackingToken),\n  KEY idx_documentTracking_documentId (documentId)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute CREATE TABLE IF NOT EXISTS documentTracking (\n  id int AUTO_INCREMENT NOT NULL,\n  documentId int NOT NULL,\n  trackingToken varchar(64) NOT NULL,\n  viewCount int NOT NULL DEFAULT 0,\n  firstViewedAt timestamp NULL,\n  lastViewedAt timestamp NULL,\n  viewerIp varchar(45) NULL,\n  viewerUserAgent text NULL,\n  createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY(id),\n  UNIQUE KEY documentTracking_trackingToken_unique (trackingToken),\n  KEY idx_documentTracking_documentId (documentId)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 171
+}

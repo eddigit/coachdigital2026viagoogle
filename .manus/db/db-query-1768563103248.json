@@ -1,0 +1,19 @@
+{
+  "query": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('documentTracking', 'documentViews', 'documentSignatures') ORDER BY TABLE_NAME;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('documentTracking', 'documentViews', 'documentSignatures') ORDER BY TABLE_NAME;",
+  "rows": [
+    {
+      "TABLE_NAME": "documentSignatures"
+    },
+    {
+      "TABLE_NAME": "documentTracking"
+    },
+    {
+      "TABLE_NAME": "documentViews"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\ndocumentSignatures\ndocumentTracking\ndocumentViews\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}
