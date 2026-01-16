@@ -357,7 +357,17 @@ export default function LeadsBase() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline">
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => {
+              if (selectedLeads.length === 0) {
+                toast.error("Sélectionnez au moins un lead");
+                return;
+              }
+              toast.info("Fonctionnalité d'envoi d'email en cours de développement");
+            }}
+          >
             <Send className="h-4 w-4 mr-2" />
             Envoyer Email
           </Button>
