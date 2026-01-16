@@ -947,3 +947,14 @@
 - [x] API getFilters pour audiences/sources uniques
 - [ ] Actions en masse (changer phase, assigner audience, supprimer)
 - [ ] Export filtré en CSV
+
+
+## Gestionnaire de Secrets/Variables d'Environnement
+- [ ] Schéma DB: table projectSecrets (projectId, key, value chiffré, category)
+- [ ] Catégories: Base de données, Hébergeur, SMTP, API Keys, Autres
+- [ ] Routeur API: CRUD secrets avec chiffrement
+- [ ] Interface: affichage masqué par défaut (●●●●●●)
+- [ ] Bouton œil pour révéler/masquer chaque secret
+- [ ] Export en fichier .env téléchargeable
+- [ ] Copier dans le presse-papier en un clic
+- [ ] Intégration dans la page détail du projet

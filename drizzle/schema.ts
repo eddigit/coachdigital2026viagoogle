@@ -816,3 +816,23 @@ export const documentSignatures = mysqlTable("documentSignatures", {
 
 export type DocumentSignature = typeof documentSignatures.$inferSelect;
 export type InsertDocumentSignature = typeof documentSignatures.$inferInsert;
+
+
+// ============================================================================
+// PROJECT SECRETS (Variables d'environnement sécurisées)
+// ============================================================================
+
+export const projectSecrets = mysqlTable("projectSecrets", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  category: mysqlEnum("category", ["database", "hosting", "smtp", "api", "ftp", "other"]).default("other").notNull(),
+  name: varchar("name", { length: 255 }).notNull(), // Nom de la variable (ex: DB_HOST)
+  value: text("value").notNull(), // Valeur (chiffrée côté serveur)
+  description: text("description"), // Description optionnelle
+  isVisible: boolean("isVisible").default(false).notNull(), // Pour l'affichage temporaire
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProjectSecret = typeof projectSecrets.$inferSelect;
+export type InsertProjectSecret = typeof projectSecrets.$inferInsert;

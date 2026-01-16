@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { useRoute } from "wouter";
-import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck, Plus, Edit, Download, Eye, EyeOff, Trash2, AlertTriangle, Pin } from "lucide-react";
+import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck, Plus, Edit, Download, Eye, EyeOff, Trash2, AlertTriangle, Pin, Key } from "lucide-react";
+import ProjectSecrets from "@/components/ProjectSecrets";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -300,7 +301,7 @@ export default function ProjectDetail() {
 
         {/* Onglets */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">
               <Briefcase className="h-4 w-4 mr-2" />
               Vue d'ensemble
@@ -312,6 +313,10 @@ export default function ProjectDetail() {
             <TabsTrigger value="env">
               <Code className="h-4 w-4 mr-2" />
               Variables
+            </TabsTrigger>
+            <TabsTrigger value="secrets">
+              <Key className="h-4 w-4 mr-2" />
+              Secrets
             </TabsTrigger>
             <TabsTrigger value="notes">
               <StickyNote className="h-4 w-4 mr-2" />
@@ -852,6 +857,11 @@ export default function ProjectDetail() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Onglet Secrets */}
+          <TabsContent value="secrets" className="space-y-4">
+            <ProjectSecrets projectId={projectId} />
           </TabsContent>
 
           {/* Onglet Notes */}
