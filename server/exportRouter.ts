@@ -69,14 +69,14 @@ export const exportRouter = router({
   }),
 
   documents: protectedProcedure.query(async () => {
-    const allDocuments = await db.getAllDocumentsWithLines();
+    const allDocuments = await db.getAllDocuments();
     
     const headers = [
       "ID", "Numéro", "Type", "Client", "Statut", "Date",
       "Date Échéance", "Total HT", "Total TVA", "Total TTC", "Objet", "Créé le"
     ];
     
-    const rows = allDocuments.map(d => [
+    const rows = allDocuments.map((d: any) => [
       d.id,
       d.number,
       d.type === "quote" ? "Devis" : d.type === "invoice" ? "Facture" : "Avoir",
@@ -98,19 +98,19 @@ export const exportRouter = router({
     const database = await getDb();
     if (!database) return { headers: [], rows: [] };
     
-    const allDocuments = await db.getAllDocumentsWithLines();
+    const allDocuments = await db.getAllDocuments();
     const allClients = await db.getAllClients();
     
-    const clientMap = new Map(allClients.map(c => [c.id, `${c.firstName} ${c.lastName}`]));
+    const clientMap = new Map(allClients.map((c: any) => [c.id, `${c.firstName} ${c.lastName}`]));
     
-    const invoices = allDocuments.filter(d => d.type === "invoice");
+    const invoices = allDocuments.filter((d: any) => d.type === "invoice");
     
     const headers = [
       "Numéro", "Client", "Date", "Échéance", "Statut",
       "Total HT", "Total TVA", "Total TTC", "Payé le"
     ];
     
-    const rows = invoices.map(d => [
+    const rows = invoices.map((d: any) => [
       d.number,
       clientMap.get(d.clientId) || `Client #${d.clientId}`,
       d.date ? new Date(d.date).toLocaleDateString("fr-FR") : "",
