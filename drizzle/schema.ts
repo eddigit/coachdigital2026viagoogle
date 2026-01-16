@@ -210,6 +210,9 @@ export const leads = mysqlTable("leads", {
   score: int("score").default(0).notNull(),
   // Audience / Segment
   audience: varchar("audience", { length: 100 }).default("general"),
+  // Activation vers le portefeuille d'affaires
+  isActivated: boolean("isActivated").default(false).notNull(),
+  activatedAt: timestamp("activatedAt"),
   // Conversion
   convertedToClientId: int("convertedToClientId"),
   convertedAt: timestamp("convertedAt"),
@@ -836,3 +839,27 @@ export const projectSecrets = mysqlTable("projectSecrets", {
 
 export type ProjectSecret = typeof projectSecrets.$inferSelect;
 export type InsertProjectSecret = typeof projectSecrets.$inferInsert;
+
+
+// ============================================================================
+// AUDIENCES (Segmentation des leads)
+// ============================================================================
+
+export const audiences = mysqlTable("audiences", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(), // Ex: "Avocats Paris", "Chefs d'entreprise"
+  description: text("description"), // Description de l'audience
+  color: varchar("color", { length: 7 }).default("#6366F1").notNull(), // Couleur pour l'affichage
+  icon: varchar("icon", { length: 50 }), // Icône optionnelle
+  // Statistiques calculées
+  leadsCount: int("leadsCount").default(0).notNull(),
+  convertedCount: int("convertedCount").default(0).notNull(),
+  totalPotential: decimal("totalPotential", { precision: 12, scale: 2 }).default("0"),
+  // Métadonnées
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Audience = typeof audiences.$inferSelect;
+export type InsertAudience = typeof audiences.$inferInsert;

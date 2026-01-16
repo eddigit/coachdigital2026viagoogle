@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target } from "lucide-react";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationsBell from "@/components/NotificationsBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -32,8 +32,8 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Clients", path: "/clients" },
-  { icon: UserPlus, label: "Leads", path: "/leads" },
-  { icon: TrendingUp, label: "Prospection", path: "/prospection" },
+  { icon: UserPlus, label: "Base de Leads", path: "/leads-base" },
+  { icon: Target, label: "Portefeuille", path: "/portfolio" },
   { icon: Mail, label: "Campagnes Emails", path: "/email-campaigns" },
   { icon: FileCode, label: "Templates Emails", path: "/email-templates" },
   { icon: Briefcase, label: "Projets", path: "/projects" },

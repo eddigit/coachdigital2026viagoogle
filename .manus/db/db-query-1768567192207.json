@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO `audiences` (`name`, `description`, `color`, `icon`) VALUES\n('Avocats Paris', 'Avocats et cabinets juridiques de la région parisienne', '#3B82F6', 'Scale'),\n('Chefs d''entreprise', 'Dirigeants et entrepreneurs', '#10B981', 'Building2'),\n('Startups', 'Fondateurs et équipes de startups', '#8B5CF6', 'Rocket'),\n('Professions libérales', 'Médecins, architectes, consultants...', '#F59E0B', 'Briefcase'),\n('PME/TPE', 'Petites et moyennes entreprises', '#EF4444', 'Factory'),\n('Général', 'Contacts non catégorisés', '#6B7280', 'Users');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user ocAJesqVvSPKcLA.8e21e7f2c662 --database 5evvQHYxZbgpbBkTD2rF9K --execute INSERT INTO `audiences` (`name`, `description`, `color`, `icon`) VALUES\n('Avocats Paris', 'Avocats et cabinets juridiques de la région parisienne', '#3B82F6', 'Scale'),\n('Chefs d''entreprise', 'Dirigeants et entrepreneurs', '#10B981', 'Building2'),\n('Startups', 'Fondateurs et équipes de startups', '#8B5CF6', 'Rocket'),\n('Professions libérales', 'Médecins, architectes, consultants...', '#F59E0B', 'Briefcase'),\n('PME/TPE', 'Petites et moyennes entreprises', '#EF4444', 'Factory'),\n('Général', 'Contacts non catégorisés', '#6B7280', 'Users');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 74
+}

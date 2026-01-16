@@ -273,6 +273,55 @@ export const leadsRouter = router({
       return { success: true };
     }),
 
+  // Activer un lead vers le portefeuille d'affaires (pipeline SPANCO)
+  activateToPortfolio: protectedProcedure
+    .input(z.object({ leadId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      await db
+        .update(leads)
+        .set({
+          isActivated: true,
+          activatedAt: new Date(),
+          status: "suspect", // Commence en phase Suspect dans le portefeuille
+        })
+        .where(eq(leads.id, input.leadId));
+
+      return { success: true };
+    }),
+
+  // Désactiver un lead du portefeuille (le remettre dans la base)
+  deactivateFromPortfolio: protectedProcedure
+    .input(z.object({ leadId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      await db
+        .update(leads)
+        .set({
+          isActivated: false,
+          activatedAt: null,
+        })
+        .where(eq(leads.id, input.leadId));
+
+      return { success: true };
+    }),
+
+  // Lister uniquement les leads activés (pour le portefeuille)
+  listActivated: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.isActivated, true))
+      .orderBy(desc(leads.activatedAt));
+  }),
+
   // Convertir un lead en client
   convertToClient: protectedProcedure
     .input(z.object({ leadId: z.number() }))
@@ -335,6 +384,28 @@ export const leadsRouter = router({
       await db.delete(leads).where(eq(leads.id, input.id));
 
       return { success: true };
+    }),
+
+  // Mettre à jour l'audience de plusieurs leads en masse
+  bulkUpdateAudience: protectedProcedure
+    .input(
+      z.object({
+        leadIds: z.array(z.number()),
+        audience: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      for (const leadId of input.leadIds) {
+        await db
+          .update(leads)
+          .set({ audience: input.audience })
+          .where(eq(leads.id, leadId));
+      }
+
+      return { success: true, updated: input.leadIds.length };
     }),
 
   // Envoyer un email à un lead

@@ -958,3 +958,25 @@
 - [ ] Export en fichier .env téléchargeable
 - [ ] Copier dans le presse-papier en un clic
 - [ ] Intégration dans la page détail du projet
+
+
+## Amélioration Gestion des Audiences Leads
+- [ ] Créer table audiences (id, name, description, color, createdAt)
+- [ ] Router tRPC pour CRUD audiences
+- [ ] Interface gestion des audiences (créer, modifier, supprimer)
+- [ ] Assigner audience lors de l'import CSV
+- [ ] Assigner audience manuellement sur un lead
+- [ ] Actions en masse : changer audience/phase de plusieurs leads
+- [ ] Filtres dynamiques basés sur les audiences créées
+- [ ] Statistiques par audience (nombre de leads, potentiel)
+
+
+## Restructuration Leads vs Portefeuille d'Affaires
+- [ ] Séparer clairement les 2 concepts :
+  - Base de Leads (33 000 contacts) : réservoir par audience, campagnes emails
+  - Portefeuille d'affaires : Pipeline SPANCO pour leads qualifiés/activés
+- [ ] Ajouter champ "isActivated" aux leads pour distinguer ceux dans le portefeuille
+- [ ] Page Leads : gestion par audience SANS vue Kanban SPANCO
+- [ ] Page Portefeuille : Pipeline Kanban SPANCO uniquement pour leads activés
+- [ ] Bouton "Activer vers le portefeuille" pour transférer un lead
+- [ ] Mettre à jour le menu sidebar avec les 2 entrées distinctes

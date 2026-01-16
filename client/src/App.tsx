@@ -19,6 +19,8 @@ import Vault from "./pages/Vault";
 import Requirements from "./pages/Requirements";
 import Today from "./pages/Today";
 import Leads from "./pages/Leads";
+import LeadsBase from "./pages/LeadsBase";
+import Portfolio from "./pages/Portfolio";
 import Notes from "./pages/Notes";
 import EmailCampaigns from "./pages/EmailCampaigns";
 import EmailTemplates from "./pages/EmailTemplates";
@@ -51,6 +53,8 @@ function Router() {
       <Route path="/requirements" component={Requirements} />
       <Route path="/today" component={Today} />
       <Route path="/leads" component={Leads} />
+      <Route path="/leads-base" component={LeadsBase} />
+      <Route path="/portfolio" component={Portfolio} />
       <Route path="/notes" component={Notes} />
       <Route path="/email-campaigns" component={EmailCampaigns} />
       <Route path="/email-templates" component={EmailTemplates} />

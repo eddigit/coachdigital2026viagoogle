@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
@@ -28,6 +29,12 @@ import {
   Send,
   CheckSquare,
   Download,
+  Users,
+  Tag,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Settings,
 } from "lucide-react";
 import Papa from "papaparse";
 import { ExportButton } from "@/components/ExportCSV";
@@ -71,6 +78,7 @@ export default function Leads() {
   const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
+  const [isAudienceDialogOpen, setIsAudienceDialogOpen] = useState(false);
 
   const handleOpenEmailDialog = (lead: any) => {
     setSelectedLead(lead);
@@ -79,8 +87,11 @@ export default function Leads() {
 
   const { data: leads = [], refetch } = trpc.leads.list.useQuery();
   const { data: stats } = trpc.leads.getStats.useQuery();
+  const { data: audiences = [] } = trpc.audiences.list.useQuery();
   const updateStatusMutation = trpc.leads.updateStatus.useMutation();
   const convertToClientMutation = trpc.leads.convertToClient.useMutation();
+  const assignAudienceMutation = trpc.audiences.assignToLeads.useMutation();
+  const changePhaseForLeadsMutation = trpc.audiences.changePhaseForLeads.useMutation();
 
   // Extraire les audiences et sources uniques
   const uniqueAudiences = [...new Set(leads.map((l: any) => l.audience || "general").filter(Boolean))];
@@ -159,6 +170,38 @@ export default function Leads() {
     }
   };
 
+  // Actions en masse - Assigner une audience
+  const handleBulkAssignAudience = async (audienceName: string) => {
+    if (selectedLeads.length === 0) {
+      toast.error("Aucun lead sélectionné");
+      return;
+    }
+    try {
+      await assignAudienceMutation.mutateAsync({ audienceName, leadIds: selectedLeads });
+      toast.success(`${selectedLeads.length} lead(s) assigné(s) à l'audience "${audienceName}"`);
+      setSelectedLeads([]);
+      refetch();
+    } catch (error) {
+      toast.error("Erreur lors de l'assignation");
+    }
+  };
+
+  // Actions en masse - Changer la phase
+  const handleBulkChangePhase = async (status: LeadStatus) => {
+    if (selectedLeads.length === 0) {
+      toast.error("Aucun lead sélectionné");
+      return;
+    }
+    try {
+      await changePhaseForLeadsMutation.mutateAsync({ status, leadIds: selectedLeads });
+      toast.success(`${selectedLeads.length} lead(s) déplacé(s) vers "${STATUS_LABELS[status]}"`);
+      setSelectedLeads([]);
+      refetch();
+    } catch (error) {
+      toast.error("Erreur lors du changement de phase");
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-full overflow-x-hidden">
@@ -211,6 +254,59 @@ export default function Leads() {
                 />
               </DialogContent>
             </Dialog>
+
+            {/* Menu Actions en masse */}
+            {selectedLeads.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <MoreHorizontal className="h-4 w-4 mr-2" />
+                    Actions ({selectedLeads.length})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Actions en masse</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Tag className="h-4 w-4 mr-2" />
+                      Assigner une audience
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {audiences.map((audience: any) => (
+                        <DropdownMenuItem
+                          key={audience.id}
+                          onClick={() => handleBulkAssignAudience(audience.name)}
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: audience.color }}
+                          />
+                          {audience.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Changer la phase
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {STATUS_ORDER.map((status) => (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={() => handleBulkChangePhase(status)}
+                        >
+                          <span className={`w-3 h-3 rounded-full mr-2 ${STATUS_COLORS[status]}`} />
+                          {STATUS_LABELS[status]}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <ExportButton type="leads" label="Exporter" />
 
@@ -301,7 +397,19 @@ export default function Leads() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les audiences</SelectItem>
-              {uniqueAudiences.map((audience: string) => (
+              {audiences.map((audience: any) => (
+                <SelectItem key={audience.id} value={audience.name}>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: audience.color }}
+                    />
+                    {audience.name}
+                  </div>
+                </SelectItem>
+              ))}
+              {/* Ajouter les audiences uniques des leads qui ne sont pas dans la table audiences */}
+              {uniqueAudiences.filter((a: string) => !audiences.some((aud: any) => aud.name === a)).map((audience: string) => (
                 <SelectItem key={audience} value={audience}>
                   {audience === "general" ? "Général" : audience}
                 </SelectItem>
