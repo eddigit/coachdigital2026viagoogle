@@ -2,11 +2,16 @@ import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Mail, Send, AlertCircle, CheckCircle, Clock, RefreshCw, Eye, MousePointerClick } from "lucide-react";
 
 export default function EmailCampaigns() {
+
   const { data: campaigns = [], refetch } = trpc.emailCampaigns.list.useQuery();
   const { data: trackingStats } = trpc.emailTracking.getCampaignStats.useQuery(
     { campaignId: campaigns[0]?.id || 0 },
@@ -246,6 +251,9 @@ export default function EmailCampaigns() {
           </CardContent>
         </Card>
       </div>
+
+
     </DashboardLayout>
   );
 }
+

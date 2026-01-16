@@ -850,7 +850,8 @@ function EmailDialog({
     if (template) {
       setSelectedTemplate(templateId);
       setSubject(template.subject);
-      setBody(template.body);
+      // Utiliser previewHtml si disponible, sinon body
+      setBody(template.previewHtml || template.body);
     }
   };
 
