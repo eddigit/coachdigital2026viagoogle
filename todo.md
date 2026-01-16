@@ -920,3 +920,17 @@
 - [x] Créer un fichier CSV de test avec 30 000 contacts
 - [x] Tester les performances d'import (500 leads en 0.17s)
 - [x] Tests unitaires validés
+
+
+## Éditeur Drag & Drop Templates Emails
+- [x] Analyser le système de templates existant (EmailTemplateEditor.tsx déjà implémenté)
+- [x] Créer composant DragDropEmailEditor avec blocs visuels (@hello-pangea/dnd)
+- [x] Blocs disponibles : header, texte, image, bouton CTA, séparateur, espace
+- [x] Personnalisation des blocs (couleurs, alignement, tailles)
+- [x] Variables dynamiques (prénom, nom, entreprise, email, téléphone, poste)
+- [x] Aperçu en temps réel du rendu email
+- [x] Sauvegarde structure JSON dans la base (bodyJson)
+- [x] Intégré dans la page Templates Emails
+- [x] Améliorer avec bloc colonnes 2 colonnes
+- [x] Ajouter bloc social (liens réseaux sociaux)
+- [x] Ajouter bloc signature personnalisée

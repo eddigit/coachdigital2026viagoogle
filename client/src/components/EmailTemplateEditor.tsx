@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 // Types pour les blocs d'email
-export type BlockType = "header" | "text" | "image" | "button" | "divider" | "spacer";
+export type BlockType = "header" | "text" | "image" | "button" | "divider" | "spacer" | "columns" | "social" | "signature";
 
 export interface EmailBlock {
   id: string;
@@ -54,6 +54,9 @@ const AVAILABLE_BLOCKS: { type: BlockType; label: string; icon: React.ReactNode 
   { type: "button", label: "Bouton CTA", icon: <MousePointer className="h-4 w-4" /> },
   { type: "divider", label: "Séparateur", icon: <Divide className="h-4 w-4" /> },
   { type: "spacer", label: "Espace", icon: <Square className="h-4 w-4" /> },
+  { type: "columns", label: "2 Colonnes", icon: <Type className="h-4 w-4" /> },
+  { type: "social", label: "Réseaux Sociaux", icon: <Link2 className="h-4 w-4" /> },
+  { type: "signature", label: "Signature", icon: <Type className="h-4 w-4" /> },
 ];
 
 // Variables disponibles pour l'interpolation
@@ -85,6 +88,12 @@ const createBlock = (type: BlockType): EmailBlock => {
       return { id, type, content: { color: "#e5e7eb", height: "1px" } };
     case "spacer":
       return { id, type, content: { height: "20px" } };
+    case "columns":
+      return { id, type, content: { leftText: "Colonne gauche", rightText: "Colonne droite" } };
+    case "social":
+      return { id, type, content: { linkedin: "https://linkedin.com/in/coachdigital", twitter: "", facebook: "", instagram: "" } };
+    case "signature":
+      return { id, type, content: { name: "Coach Digital Paris", title: "Expert IA & Développement", phone: "+33 6 52 34 51 80", email: "coachdigitalparis@gmail.com", website: "https://coachdigital.biz" } };
     default:
       return { id, type, content: {} };
   }
@@ -111,6 +120,31 @@ const generateHtml = (blocks: EmailBlock[]): string => {
         return `<hr style="border: none; border-top: ${block.content.height || "1px"} solid ${block.content.color || "#e5e7eb"}; margin: 16px 0;" />`;
       case "spacer":
         return `<div style="height: ${block.content.height || "20px"};"></div>`;
+      case "columns":
+        return `<table style="width: 100%; margin: 16px 0;" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="width: 50%; padding: 10px; vertical-align: top;">${block.content.leftText}</td>
+            <td style="width: 50%; padding: 10px; vertical-align: top;">${block.content.rightText}</td>
+          </tr>
+        </table>`;
+      case "social":
+        const socialLinks = [];
+        if (block.content.linkedin) socialLinks.push(`<a href="${block.content.linkedin}" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/174/174857.png" alt="LinkedIn" style="width: 24px; height: 24px;" /></a>`);
+        if (block.content.twitter) socialLinks.push(`<a href="${block.content.twitter}" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733579.png" alt="Twitter" style="width: 24px; height: 24px;" /></a>`);
+        if (block.content.facebook) socialLinks.push(`<a href="${block.content.facebook}" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733547.png" alt="Facebook" style="width: 24px; height: 24px;" /></a>`);
+        if (block.content.instagram) socialLinks.push(`<a href="${block.content.instagram}" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/174/174855.png" alt="Instagram" style="width: 24px; height: 24px;" /></a>`);
+        return `<div style="text-align: center; margin: 16px 0;">${socialLinks.join("")}</div>`;
+      case "signature":
+        return `<div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          <p style="margin: 0; font-weight: bold; color: #1f2937;">${block.content.name}</p>
+          <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">${block.content.title}</p>
+          <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
+            ${block.content.phone ? `Tél: ${block.content.phone}` : ""}
+            ${block.content.phone && block.content.email ? " | " : ""}
+            ${block.content.email ? `<a href="mailto:${block.content.email}" style="color: #E67E50;">${block.content.email}</a>` : ""}
+          </p>
+          ${block.content.website ? `<p style="margin: 4px 0;"><a href="${block.content.website}" style="color: #E67E50; font-size: 14px;">${block.content.website}</a></p>` : ""}
+        </div>`;
       default:
         return "";
     }
@@ -434,6 +468,30 @@ export function EmailTemplateEditor({
                                     Espace
                                   </div>
                                 )}
+                                {block.type === "columns" && (
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-2 bg-gray-50 rounded text-sm">{block.content.leftText}</div>
+                                    <div className="p-2 bg-gray-50 rounded text-sm">{block.content.rightText}</div>
+                                  </div>
+                                )}
+                                {block.type === "social" && (
+                                  <div className="flex justify-center gap-4">
+                                    {block.content.linkedin && <span className="text-blue-600">LinkedIn</span>}
+                                    {block.content.twitter && <span className="text-sky-500">Twitter</span>}
+                                    {block.content.facebook && <span className="text-blue-700">Facebook</span>}
+                                    {block.content.instagram && <span className="text-pink-600">Instagram</span>}
+                                    {!block.content.linkedin && !block.content.twitter && !block.content.facebook && !block.content.instagram && (
+                                      <span className="text-muted-foreground">Réseaux sociaux</span>
+                                    )}
+                                  </div>
+                                )}
+                                {block.type === "signature" && (
+                                  <div className="border-t pt-3">
+                                    <p className="font-bold">{block.content.name}</p>
+                                    <p className="text-sm text-muted-foreground">{block.content.title}</p>
+                                    <p className="text-sm text-muted-foreground">{block.content.phone} | {block.content.email}</p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -596,6 +654,105 @@ export function EmailTemplateEditor({
                         onChange={(e) => updateBlock(selectedBlock.id, { color: e.target.value })}
                       />
                     </div>
+                  )}
+
+                  {selectedBlock.type === "columns" && (
+                    <>
+                      <div>
+                        <Label>Colonne gauche</Label>
+                        <Textarea
+                          value={selectedBlock.content.leftText || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { leftText: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label>Colonne droite</Label>
+                        <Textarea
+                          value={selectedBlock.content.rightText || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { rightText: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {selectedBlock.type === "social" && (
+                    <>
+                      <div>
+                        <Label>LinkedIn</Label>
+                        <Input
+                          value={selectedBlock.content.linkedin || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { linkedin: e.target.value })}
+                          placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
+                      <div>
+                        <Label>Twitter / X</Label>
+                        <Input
+                          value={selectedBlock.content.twitter || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { twitter: e.target.value })}
+                          placeholder="https://twitter.com/..."
+                        />
+                      </div>
+                      <div>
+                        <Label>Facebook</Label>
+                        <Input
+                          value={selectedBlock.content.facebook || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { facebook: e.target.value })}
+                          placeholder="https://facebook.com/..."
+                        />
+                      </div>
+                      <div>
+                        <Label>Instagram</Label>
+                        <Input
+                          value={selectedBlock.content.instagram || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { instagram: e.target.value })}
+                          placeholder="https://instagram.com/..."
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {selectedBlock.type === "signature" && (
+                    <>
+                      <div>
+                        <Label>Nom</Label>
+                        <Input
+                          value={selectedBlock.content.name || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { name: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Titre / Fonction</Label>
+                        <Input
+                          value={selectedBlock.content.title || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Téléphone</Label>
+                        <Input
+                          value={selectedBlock.content.phone || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { phone: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <Input
+                          value={selectedBlock.content.email || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { email: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Site web</Label>
+                        <Input
+                          value={selectedBlock.content.website || ""}
+                          onChange={(e) => updateBlock(selectedBlock.id, { website: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               ) : (
