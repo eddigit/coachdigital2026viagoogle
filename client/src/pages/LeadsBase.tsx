@@ -905,12 +905,10 @@ function EmailDialog({
             />
           </div>
           <div>
-            <Label>Corps *</Label>
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={10}
-              placeholder="Corps de l'email (utilisez {{firstName}} pour personnaliser)"
+            <Label>Aperçu du corps de l'email</Label>
+            <div 
+              className="border rounded-md p-4 max-h-96 overflow-y-auto bg-white"
+              dangerouslySetInnerHTML={{ __html: body }}
             />
           </div>
           <div className="flex justify-end gap-2">
