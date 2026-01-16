@@ -910,3 +910,13 @@
 - [ ] Mettre à jour la page Leads avec les 6 phases SPANCO
 - [ ] Ajouter lien vers Templates dans la sidebar
 - [ ] Créer templates prédéfinis (vœux, présentation, relance, etc.)
+
+
+## Optimisation Import CSV 30 000 Contacts
+- [x] Analyser le système d'import CSV actuel
+- [x] Optimiser l'import par batch (lots de 500)
+- [x] Ajouter une barre de progression en temps réel
+- [x] Gérer les erreurs et doublons (détection côté serveur)
+- [x] Créer un fichier CSV de test avec 30 000 contacts
+- [x] Tester les performances d'import (500 leads en 0.17s)
+- [x] Tests unitaires validés

@@ -398,7 +398,7 @@ export const leadsRouter = router({
     return stats;
   }),
 
-  // Importer des leads depuis un CSV
+  // Importer des leads depuis un CSV (optimisé pour gros volumes - jusqu'à 30 000 contacts)
   importFromCSV: protectedProcedure
     .input(
       z.object({
@@ -423,32 +423,50 @@ export const leadsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
+      const BATCH_SIZE = 500; // Taille optimale pour MySQL
       const results = {
         total: input.leads.length,
         imported: 0,
         duplicates: 0,
         errors: 0,
         errorDetails: [] as string[],
+        batchesProcessed: 0,
+        totalBatches: Math.ceil(input.leads.length / BATCH_SIZE),
       };
 
+      // Récupérer tous les emails existants en une seule requête pour éviter N requêtes
+      const existingEmails = new Set<string>();
+      const allExisting = await db.select({ email: leads.email }).from(leads);
+      for (const row of allExisting) {
+        if (row.email) existingEmails.add(row.email.toLowerCase());
+      }
+
+      // Filtrer les doublons côté serveur
+      const uniqueLeads: typeof input.leads = [];
+      const seenEmails = new Set<string>();
+
       for (const leadData of input.leads) {
-        try {
-          // Vérifier les doublons par email
-          if (leadData.email) {
-            const existing = await db
-              .select()
-              .from(leads)
-              .where(eq(leads.email, leadData.email))
-              .limit(1);
-
-            if (existing.length > 0) {
-              results.duplicates++;
-              continue;
-            }
+        const email = leadData.email?.toLowerCase();
+        
+        // Vérifier si l'email existe déjà en base ou dans le batch actuel
+        if (email) {
+          if (existingEmails.has(email) || seenEmails.has(email)) {
+            results.duplicates++;
+            continue;
           }
+          seenEmails.add(email);
+        }
+        
+        uniqueLeads.push(leadData);
+      }
 
-          // Insérer le lead
-          await db.insert(leads).values({
+      // Insérer par batch pour optimiser les performances
+      for (let i = 0; i < uniqueLeads.length; i += BATCH_SIZE) {
+        const batch = uniqueLeads.slice(i, i + BATCH_SIZE);
+        
+        try {
+          // Préparer les valeurs pour l'insertion batch
+          const valuesToInsert = batch.map(leadData => ({
             firstName: leadData.firstName,
             lastName: leadData.lastName,
             email: leadData.email,
@@ -458,14 +476,41 @@ export const leadsRouter = router({
             status: leadData.status,
             potentialAmount: leadData.potentialAmount?.toString(),
             probability: leadData.probability,
-            source: leadData.source,
+            source: leadData.source || "Import CSV",
             notes: leadData.notes,
-          });
+          }));
 
-          results.imported++;
+          // Insertion batch (beaucoup plus rapide que les insertions individuelles)
+          await db.insert(leads).values(valuesToInsert);
+          
+          results.imported += batch.length;
+          results.batchesProcessed++;
         } catch (error) {
-          results.errors++;
-          results.errorDetails.push(`${leadData.firstName} ${leadData.lastName}: ${error}`);
+          // En cas d'erreur sur le batch, essayer l'insertion individuelle
+          for (const leadData of batch) {
+            try {
+              await db.insert(leads).values({
+                firstName: leadData.firstName,
+                lastName: leadData.lastName,
+                email: leadData.email,
+                phone: leadData.phone,
+                company: leadData.company,
+                position: leadData.position,
+                status: leadData.status,
+                potentialAmount: leadData.potentialAmount?.toString(),
+                probability: leadData.probability,
+                source: leadData.source || "Import CSV",
+                notes: leadData.notes,
+              });
+              results.imported++;
+            } catch (individualError) {
+              results.errors++;
+              if (results.errorDetails.length < 10) {
+                results.errorDetails.push(`${leadData.firstName} ${leadData.lastName}: ${individualError}`);
+              }
+            }
+          }
+          results.batchesProcessed++;
         }
       }
 

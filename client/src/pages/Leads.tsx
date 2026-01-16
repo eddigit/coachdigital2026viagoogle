@@ -888,21 +888,40 @@ function SendEmailForm({ lead, onSuccess }: { lead: any; onSuccess: () => void }
   );
 }
 
-// Composant ImportCSVForm
+// Composant ImportCSVForm - Optimisé pour 30 000 contacts
 function ImportCSVForm({ onSuccess }: { onSuccess: () => void }) {
   const [csvData, setCsvData] = useState<any[]>([]);
   const [preview, setPreview] = useState<any[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importStats, setImportStats] = useState<{
+    imported: number;
+    duplicates: number;
+    errors: number;
+    total: number;
+  } | null>(null);
   const importMutation = trpc.leads.importFromCSV.useMutation();
+
+  const CHUNK_SIZE = 5000; // Envoyer par chunks de 5000 pour éviter les timeouts
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setProgress(0);
+    setImportStats(null);
+
     Papa.parse(file, {
       header: true,
+      skipEmptyLines: true,
       complete: (results) => {
-        setCsvData(results.data);
-        setPreview(results.data.slice(0, 5)); // Prévisualiser les 5 premiers
+        // Filtrer les lignes vides
+        const validData = results.data.filter((row: any) => 
+          row.firstName || row.prenom || row.lastName || row.nom || row.email
+        );
+        setCsvData(validData);
+        setPreview(validData.slice(0, 5));
+        toast.success(`${validData.length} contacts détectés dans le fichier`);
       },
       error: (error) => {
         toast.error(`Erreur de parsing CSV: ${error.message}`);
@@ -911,50 +930,81 @@ function ImportCSVForm({ onSuccess }: { onSuccess: () => void }) {
   };
 
   const handleImport = async () => {
+    if (csvData.length === 0) return;
+
+    setIsImporting(true);
+    setProgress(0);
+    setImportStats(null);
+
+    const totalStats = {
+      imported: 0,
+      duplicates: 0,
+      errors: 0,
+      total: csvData.length,
+    };
+
+    const totalChunks = Math.ceil(csvData.length / CHUNK_SIZE);
+
     try {
-      const result = await importMutation.mutateAsync({
-        leads: csvData.map((row: any) => ({
-          firstName: row.firstName || row.prenom || "",
-          lastName: row.lastName || row.nom || "",
-          email: row.email || "",
-          phone: row.phone || row.telephone || "",
-          company: row.company || row.entreprise || "",
-          position: row.position || row.poste || "",
-          status: "suspect" as const,
-          potentialAmount: parseFloat(row.potentialAmount || row.montant || "0") || undefined,
-          probability: parseInt(row.probability || row.probabilite || "25") || 25,
-          source: row.source || "Import CSV",
-          notes: row.notes || "",
-        })),
-      });
+      for (let i = 0; i < csvData.length; i += CHUNK_SIZE) {
+        const chunk = csvData.slice(i, i + CHUNK_SIZE);
+        const chunkNumber = Math.floor(i / CHUNK_SIZE) + 1;
+
+        const result = await importMutation.mutateAsync({
+          leads: chunk.map((row: any) => ({
+            firstName: row.firstName || row.prenom || "",
+            lastName: row.lastName || row.nom || "",
+            email: row.email || "",
+            phone: row.phone || row.telephone || "",
+            company: row.company || row.entreprise || "",
+            position: row.position || row.poste || "",
+            status: "suspect" as const,
+            potentialAmount: parseFloat(row.potentialAmount || row.montant || "0") || undefined,
+            probability: parseInt(row.probability || row.probabilite || "25") || 25,
+            source: row.source || "Import CSV",
+            notes: row.notes || "",
+          })),
+        });
+
+        totalStats.imported += result.imported;
+        totalStats.duplicates += result.duplicates;
+        totalStats.errors += result.errors;
+
+        const progressPercent = Math.round((chunkNumber / totalChunks) * 100);
+        setProgress(progressPercent);
+        setImportStats({ ...totalStats });
+      }
 
       toast.success(
-        `Import terminé : ${result.imported} leads importés, ${result.duplicates} doublons ignorés, ${result.errors} erreurs`
+        `Import terminé : ${totalStats.imported} leads importés, ${totalStats.duplicates} doublons ignorés, ${totalStats.errors} erreurs`
       );
       onSuccess();
     } catch (error) {
       toast.error("Erreur lors de l'import");
+    } finally {
+      setIsImporting(false);
     }
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="csv-file">Fichier CSV</Label>
+        <Label htmlFor="csv-file">Fichier CSV (jusqu'à 30 000 contacts)</Label>
         <Input
           id="csv-file"
           type="file"
           accept=".csv"
           onChange={handleFileUpload}
+          disabled={isImporting}
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Colonnes attendues : firstName, lastName, email, phone, company, position
+          Colonnes attendues : firstName/prenom, lastName/nom, email, phone/telephone, company/entreprise, position/poste
         </p>
       </div>
 
       {preview.length > 0 && (
         <div>
-          <Label>Prévisualisation ({csvData.length} lignes)</Label>
+          <Label>Prévisualisation ({csvData.length.toLocaleString()} contacts)</Label>
           <div className="mt-2 border rounded-md overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
@@ -977,15 +1027,44 @@ function ImportCSVForm({ onSuccess }: { onSuccess: () => void }) {
               </tbody>
             </table>
           </div>
+          {csvData.length > 5 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              ... et {(csvData.length - 5).toLocaleString()} autres contacts
+            </p>
+          )}
+        </div>
+      )}
+
+      {isImporting && (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Import en cours...</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className="bg-primary h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          {importStats && (
+            <div className="text-xs text-muted-foreground">
+              Importés: {importStats.imported.toLocaleString()} | 
+              Doublons: {importStats.duplicates.toLocaleString()} | 
+              Erreurs: {importStats.errors}
+            </div>
+          )}
         </div>
       )}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button
           onClick={handleImport}
-          disabled={csvData.length === 0 || importMutation.isPending}
+          disabled={csvData.length === 0 || isImporting}
         >
-          {importMutation.isPending ? "Import en cours..." : `Importer ${csvData.length} leads`}
+          {isImporting 
+            ? `Import en cours... ${progress}%` 
+            : `Importer ${csvData.length.toLocaleString()} leads`}
         </Button>
       </div>
     </div>
