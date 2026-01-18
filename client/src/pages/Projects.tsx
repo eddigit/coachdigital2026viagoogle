@@ -82,6 +82,9 @@ export default function Projects() {
       endDate: null,
       estimatedHours: (formData.get("estimatedHours") as string) || null,
       budgetEstimate: (formData.get("budgetEstimate") as string) || null,
+      progressPercentage: parseInt(formData.get("progressPercentage") as string) || 0,
+      clientBudget: (formData.get("clientBudget") as string) || null,
+      projectCost: (formData.get("projectCost") as string) || null,
       notes: (formData.get("notes") as string) || null,
       logoUrl,
     };
@@ -148,6 +151,20 @@ export default function Projects() {
                   <Label>Description</Label>
                   <Textarea name="description" defaultValue={editingProject?.description || ""} />
                 </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>% Avancement</Label>
+                    <Input name="progressPercentage" type="number" min="0" max="100" defaultValue={editingProject?.progressPercentage || 0} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Budget Client (€)</Label>
+                    <Input name="clientBudget" type="number" step="0.01" defaultValue={editingProject?.clientBudget || ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Coût Projet (€)</Label>
+                    <Input name="projectCost" type="number" step="0.01" defaultValue={editingProject?.projectCost || ""} />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Type</Label>
@@ -193,7 +210,19 @@ export default function Projects() {
             {projects.map((p) => {
               const client = clients?.find(c => c.id === p.clientId);
               return (
-                <Card key={p.id}>
+                <Card key={p.id} className="relative">
+                  {/* Indicateurs en haut à droite */}
+                  <div className="absolute top-3 right-3 flex gap-2 text-xs font-medium">
+                    {p.progressPercentage !== null && p.progressPercentage !== undefined && (
+                      <span className="px-2 py-1 bg-blue-500/10 text-blue-600 rounded">{p.progressPercentage}%</span>
+                    )}
+                    {p.clientBudget && (
+                      <span className="px-2 py-1 bg-green-500/10 text-green-600 rounded">{parseFloat(p.clientBudget).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
+                    )}
+                    {p.projectCost && (
+                      <span className="px-2 py-1 bg-red-500/10 text-red-600 rounded">{parseFloat(p.projectCost).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
+                    )}
+                  </div>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">

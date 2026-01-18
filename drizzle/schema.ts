@@ -365,6 +365,9 @@ export const projects = mysqlTable("projects", {
   estimatedHours: decimal("estimatedHours", { precision: 10, scale: 2 }),
   // Budget
   budgetEstimate: decimal("budgetEstimate", { precision: 10, scale: 2 }),
+  clientBudget: decimal("clientBudget", { precision: 10, scale: 2 }), // Budget client (vert)
+  projectCost: decimal("projectCost", { precision: 10, scale: 2 }), // Coût projet (rouge)
+  progressPercentage: int("progressPercentage").default(0), // % avancement (bleu)
   notes: text("notes"),
   // Logo
   logoUrl: varchar("logoUrl", { length: 500 }),

@@ -376,6 +376,10 @@
 - [ ] Intégrer les templates dans pdfGenerator.ts (TODO)
 - [x] Bouton "Réinitialiser aux valeurs par défaut"
 
+## Indicateurs Cards Projets
+- [x] Ajouter champs dans schéma projets (progressPercentage, clientBudget, projectCost)
+- [x] Afficher indicateurs en haut à droite des cards projets (% bleu, budget vert, coût rouge)
+
 ## Page Aujourd'hui - Gestion Journée
 - [x] Modifier table timeEntries (ajout userId, title, date, period, type, status)
 - [ ] Router tRPC pour CRUD timeEntries
