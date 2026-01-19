@@ -1076,10 +1076,9 @@ function BackendAdminSettings() {
   });
   
   const handleLogoUpload = async (imageData: string, mimeType: string) => {
-    const uploadMutation = trpc.upload.image.useMutation();
-    const result = await uploadMutation.mutateAsync({ imageData, mimeType, folder: "company" });
-    upsertCompany.mutate({ appLogo: result.url });
-    return result;
+    // Stocker directement l'image en base64 (data URL)
+    upsertCompany.mutate({ appLogo: imageData });
+    return { url: imageData };
   };
 
   const handleExport = async () => {
