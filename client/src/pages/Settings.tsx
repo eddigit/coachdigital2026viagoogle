@@ -1077,7 +1077,10 @@ function BackendAdminSettings() {
   
   const handleLogoUpload = async (imageData: string, mimeType: string) => {
     // Stocker directement l'image en base64 (data URL)
-    upsertCompany.mutate({ appLogo: imageData });
+    upsertCompany.mutate({ 
+      name: company?.name || "Coach Digital",
+      appLogo: imageData 
+    });
     return { url: imageData };
   };
 
