@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import ImageUpload from "@/components/ImageUpload";
-import { Building2, FileText, Palette, Mail, Ban } from "lucide-react";
+import { Building2, FileText, Palette, Mail, Ban, Database } from "lucide-react";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("company");
@@ -26,7 +26,7 @@ export default function Settings() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="company">
             <Building2 className="h-4 w-4 mr-2" />
             Entreprise
@@ -42,6 +42,10 @@ export default function Settings() {
           <TabsTrigger value="blacklist">
             <Ban className="h-4 w-4 mr-2" />
             Blacklist
+          </TabsTrigger>
+          <TabsTrigger value="admin">
+            <Database className="h-4 w-4 mr-2" />
+            Backend Admin
           </TabsTrigger>
         </TabsList>
         
@@ -63,6 +67,11 @@ export default function Settings() {
         {/* Onglet Blacklist */}
         <TabsContent value="blacklist">
           <BlacklistSettings />
+        </TabsContent>
+        
+        {/* Onglet Backend Admin */}
+        <TabsContent value="admin">
+          <BackendAdminSettings />
         </TabsContent>
       </Tabs>
       </div>
@@ -1042,6 +1051,90 @@ function BlacklistSettings() {
             <strong>⚖️ Conformité RGPD :</strong> Les emails blacklistés ne recevront plus aucun email de prospection. 
             Conservez cette liste pour prouver le respect des désabonnements en cas de contrôle CNIL.
           </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// Composant Backend Admin
+function BackendAdminSettings() {
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const exportDatabase = trpc.admin.exportDatabase.useQuery(undefined, {
+    enabled: false,
+  });
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const result = await exportDatabase.refetch();
+      
+      if (result.data) {
+        // Créer un blob JSON
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+          type: "application/json",
+        });
+        
+        // Créer un lien de téléchargement
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `coach-digital-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast.success("Base de données exportée avec succès");
+      }
+    } catch (error: any) {
+      toast.error("Erreur lors de l'export : " + error.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Backend Administration</CardTitle>
+        <CardDescription>
+          Outils d'administration et de maintenance de la plateforme
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Export de la base de données</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Téléchargez une copie complète de toutes les données de la plateforme au format JSON.
+              Cet export inclut toutes les tables : clients, projets, tâches, documents, etc.
+            </p>
+            <Button 
+              onClick={handleExport} 
+              disabled={isExporting}
+              className="bg-[#E67E50] hover:bg-[#E67E50]/90"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              {isExporting ? "Export en cours..." : "Exporter la base de données"}
+            </Button>
+          </div>
+          
+          <div className="pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-2">Statistiques système</h3>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Version</p>
+                <p className="text-2xl font-bold">1.0.0</p>
+              </div>
+              <div className="p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Environnement</p>
+                <p className="text-2xl font-bold">Production</p>
+              </div>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -988,3 +988,9 @@
 ## Gestion date et période des tâches
 - [ ] Ajouter champs date et période (matinée/après-midi/soirée) dans formulaire création tâche
 - [ ] Mettre à jour le filtre Aujourd'hui pour afficher les tâches du jour avec période
+
+## Export Global Base de Données
+- [x] Créer route tRPC admin.exportDatabase pour exporter toutes les tables
+- [x] Générer fichier JSON avec toutes les données
+- [x] Ajouter bouton "Exporter BDD" dans page Backend Admin
+- [x] Téléchargement automatique du fichier JSON
