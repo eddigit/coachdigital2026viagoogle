@@ -61,7 +61,23 @@ export default function Today() {
 
   // Queries
   const { data: entries = [], refetch } = trpc.timeEntries.listByDate.useQuery({ date: selectedDate });
-  const { data: overdueTasks = [] } = trpc.tasks.list.useQuery();
+  const { data: allTasks = [] } = trpc.tasks.list.useQuery();
+  
+  // Filtrer les tâches du jour sélectionné
+  const todayTasks = allTasks.filter((task: any) => {
+    if (!task.dueDate) return false;
+    const taskDate = new Date(task.dueDate).toISOString().split('T')[0];
+    return taskDate === selectedDate;
+  });
+  
+  // Filtrer les tâches en retard
+  const overdueTasks = allTasks.filter((task: any) => {
+    if (task.status === "done" || task.status === "cancelled") return false;
+    if (!task.dueDate) return false;
+    const dueDate = new Date(task.dueDate).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    return dueDate < today;
+  });
   const { data: overdueFollowUps = [] } = trpc.leads.getOverdueFollowUps.useQuery();
   const { data: clients = [] } = trpc.clients.list.useQuery();
   const { data: projects = [] } = trpc.projects.list.useQuery();
@@ -262,15 +278,6 @@ export default function Today() {
 
   const dayStats = calculateDayStats();
 
-  // Filtrer les tâches en retard
-  const overdueTasksList = overdueTasks.filter((task: any) => {
-    if (task.status === "completed") return false;
-    if (!task.dueDate) return false;
-    const dueDate = new Date(task.dueDate);
-    const today = new Date();
-    return dueDate < today;
-  });
-
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-full overflow-x-hidden">
@@ -347,19 +354,19 @@ export default function Today() {
       )}
 
       {/* Tâches en retard */}
-      {overdueTasksList.length > 0 && (
+      {overdueTasks.length > 0 && (
         <Card className="border-red-500/50 bg-red-500/5">
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
               <CardTitle className="text-lg text-red-500">
-                Tâches en retard ({overdueTasksList.length})
+                Tâches en retard ({overdueTasks.length})
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {overdueTasksList.slice(0, 5).map((task: any) => {
+              {overdueTasks.slice(0, 5).map((task: any) => {
                 const project = projects.find((p) => p.id === task.projectId);
                 const client = clients.find((c) => c.id === project?.clientId);
                 const daysOverdue = Math.floor(
@@ -384,9 +391,9 @@ export default function Today() {
                   </div>
                 );
               })}
-              {overdueTasksList.length > 5 && (
+              {overdueTasks.length > 5 && (
                 <p className="text-sm text-muted-foreground text-center pt-2">
-                  Et {overdueTasksList.length - 5} autre{overdueTasksList.length - 5 > 1 ? "s" : ""} tâche{overdueTasksList.length - 5 > 1 ? "s" : ""}...
+                  Et {overdueTasks.length - 5} autre{overdueTasks.length - 5 > 1 ? "s" : ""} tâche{overdueTasks.length - 5 > 1 ? "s" : ""}...
                 </p>
               )}
             </div>
@@ -654,12 +661,37 @@ export default function Today() {
                           snapshot.isDraggingOver ? "bg-primary/5 rounded-lg" : ""
                         }`}
                       >
-                        {periodEntries.length === 0 ? (
+                        {/* Tâches du jour pour cette période */}
+                        {todayTasks
+                          .filter((task: any) => task.period === period.id || task.period === 'all_day')
+                          .map((task: any) => {
+                            const project = projects.find((p) => p.id === task.projectId);
+                            const client = clients.find((c) => c.id === task.clientId);
+                            return (
+                              <div key={`task-${task.id}`} className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <p className="font-medium text-sm">{task.title}</p>
+                                    <div className="flex gap-2 text-xs text-muted-foreground mt-1">
+                                      {client && <span>👤 {client.firstName} {client.lastName}</span>}
+                                      {project && <span>📁 {project.name}</span>}
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.status === 'todo' ? 'À faire' : task.status === 'in_progress' ? 'En cours' : task.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        
+                        {periodEntries.length === 0 && todayTasks.filter((task: any) => task.period === period.id || task.period === 'all_day').length === 0 ? (
                           <p className="text-sm text-muted-foreground text-center py-4">
                             Aucune activité planifiée
                           </p>
-                        ) : (
-                          periodEntries.map((entry, index) => {
+                        ) : null}
+                        
+                        {periodEntries.map((entry, index) => {
                             const client = clients.find((c) => c.id === entry.clientId);
                             const project = projects.find((p) => p.id === entry.projectId);
                             const isRunning = entry.status === "in_progress";
@@ -790,8 +822,7 @@ export default function Today() {
                                 )}
                               </Draggable>
                             );
-                          })
-                        )}
+                          })}
                         {provided.placeholder}
                       </div>
                     )}

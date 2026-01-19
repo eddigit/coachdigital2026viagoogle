@@ -54,6 +54,8 @@ export default function Tasks() {
     const projectId = formData.get("projectId") as string;
     const clientId = formData.get("clientId") as string;
     
+    const dueDateStr = formData.get("dueDate") as string;
+    
     const data = {
       projectId: projectId && projectId !== "none" ? parseInt(projectId) : null,
       clientId: clientId && clientId !== "none" ? parseInt(clientId) : null,
@@ -61,7 +63,8 @@ export default function Tasks() {
       description: (formData.get("description") as string) || null,
       status: (formData.get("status") as any) || "todo",
       priority: (formData.get("priority") as any) || "normal",
-      dueDate: null,
+      dueDate: dueDateStr ? new Date(dueDateStr) : null,
+      period: (formData.get("period") as any) || "all_day",
       completedAt: null,
       estimatedHours: (formData.get("estimatedHours") as string) || null,
       isBillable: formData.get("isBillable") === "on",
@@ -165,6 +168,24 @@ export default function Tasks() {
                         <SelectItem value="normal">Normale</SelectItem>
                         <SelectItem value="high">Haute</SelectItem>
                         <SelectItem value="urgent">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input name="dueDate" type="date" defaultValue={editingTask?.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Période</Label>
+                    <Select name="period" defaultValue={editingTask?.period || "all_day"}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all_day">Toute la journée</SelectItem>
+                        <SelectItem value="morning">Matinée</SelectItem>
+                        <SelectItem value="afternoon">Après-midi</SelectItem>
+                        <SelectItem value="evening">Soirée</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

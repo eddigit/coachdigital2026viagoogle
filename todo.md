@@ -984,3 +984,7 @@
 - [ ] Page Portefeuille : Pipeline Kanban SPANCO uniquement pour leads activés
 - [ ] Bouton "Activer vers le portefeuille" pour transférer un lead
 - [ ] Mettre à jour le menu sidebar avec les 2 entrées distinctes
+
+## Gestion date et période des tâches
+- [ ] Ajouter champs date et période (matinée/après-midi/soirée) dans formulaire création tâche
+- [ ] Mettre à jour le filtre Aujourd'hui pour afficher les tâches du jour avec période

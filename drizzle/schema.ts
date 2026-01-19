@@ -392,6 +392,7 @@ export const tasks = mysqlTable("tasks", {
   priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).default("normal"),
   // Dates
   dueDate: timestamp("dueDate"),
+  period: mysqlEnum("period", ["all_day", "morning", "afternoon", "evening"]).default("all_day"),
   completedAt: timestamp("completedAt"),
   // Temps estimé
   estimatedHours: decimal("estimatedHours", { precision: 10, scale: 2 }),
