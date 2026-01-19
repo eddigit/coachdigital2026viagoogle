@@ -663,7 +663,14 @@ export default function Today() {
                       >
                         {/* Tâches du jour pour cette période */}
                         {todayTasks
-                          .filter((task: any) => task.period === period.id || task.period === 'all_day')
+                          .filter((task: any) => {
+                            // Si la tâche a une période spécifique, elle doit correspondre
+                            if (task.period && task.period !== 'all_day') {
+                              return task.period === period.id;
+                            }
+                            // Si pas de période ou 'all_day', afficher dans toutes les périodes
+                            return task.period === 'all_day' || !task.period;
+                          })
                           .map((task: any) => {
                             const project = projects.find((p) => p.id === task.projectId);
                             const client = clients.find((c) => c.id === task.clientId);
@@ -685,7 +692,12 @@ export default function Today() {
                             );
                           })}
                         
-                        {periodEntries.length === 0 && todayTasks.filter((task: any) => task.period === period.id || task.period === 'all_day').length === 0 ? (
+                        {periodEntries.length === 0 && todayTasks.filter((task: any) => {
+                          if (task.period && task.period !== 'all_day') {
+                            return task.period === period.id;
+                          }
+                          return task.period === 'all_day' || !task.period;
+                        }).length === 0 ? (
                           <p className="text-sm text-muted-foreground text-center py-4">
                             Aucune activité planifiée
                           </p>

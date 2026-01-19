@@ -1000,3 +1000,6 @@
 - [x] Ajouter upload logo dans Backend Admin (Settings)
 - [x] Mettre à jour header pour afficher logo dynamique
 - [ ] Utiliser logo dans génération PDF (devis/factures) - TODO frontend
+
+## Bug filtre période tâches
+- [x] Corriger le filtre dans Today.tsx : une tâche "soirée" apparaît dans toutes les périodes
