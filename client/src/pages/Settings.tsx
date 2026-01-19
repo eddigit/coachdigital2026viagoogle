@@ -256,7 +256,7 @@ function TemplatesSettings() {
   
   // États du formulaire
   const [formData, setFormData] = useState({
-    name: "",
+    name: `Template ${templateType === "quote" ? "Devis" : "Facture"}`,
     logoUrl: "",
     primaryColor: "#E67E50",
     secondaryColor: "#1E293B",

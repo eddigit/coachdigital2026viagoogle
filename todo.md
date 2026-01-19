@@ -1003,3 +1003,6 @@
 
 ## Bug filtre période tâches
 - [x] Corriger le filtre dans Today.tsx : une tâche "soirée" apparaît dans toutes les périodes
+
+## Bug enregistrement template facture
+- [x] Corriger validation champ name vide dans documentTemplates.create (erreur 400)
