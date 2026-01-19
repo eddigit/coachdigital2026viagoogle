@@ -1061,10 +1061,26 @@ function BlacklistSettings() {
 // Composant Backend Admin
 function BackendAdminSettings() {
   const [isExporting, setIsExporting] = useState(false);
+  const { data: company, isLoading } = trpc.company.get.useQuery();
+  const utils = trpc.useUtils();
+  
+  const upsertCompany = trpc.company.upsert.useMutation({
+    onSuccess: () => {
+      toast.success("Logo mis à jour");
+      utils.company.get.invalidate();
+    },
+  });
   
   const exportDatabase = trpc.admin.exportDatabase.useQuery(undefined, {
     enabled: false,
   });
+  
+  const handleLogoUpload = async (imageData: string, mimeType: string) => {
+    const uploadMutation = trpc.upload.image.useMutation();
+    const result = await uploadMutation.mutateAsync({ imageData, mimeType, folder: "company" });
+    upsertCompany.mutate({ appLogo: result.url });
+    return result;
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -1107,6 +1123,18 @@ function BackendAdminSettings() {
       <CardContent className="space-y-6">
         <div className="space-y-4">
           <div>
+            <h3 className="text-lg font-semibold mb-2">Logo de l'application</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Ce logo s'affichera dans le header de l'application et sur tous les documents PDF générés (devis, factures).
+            </p>
+            <ImageUpload
+              currentImageUrl={company?.appLogo || ""}
+              onUpload={handleLogoUpload}
+              label="Logo de l'application"
+            />
+          </div>
+          
+          <div className="pt-4 border-t">
             <h3 className="text-lg font-semibold mb-2">Export de la base de données</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Téléchargez une copie complète de toutes les données de la plateforme au format JSON.

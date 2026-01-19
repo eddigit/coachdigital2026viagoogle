@@ -994,3 +994,9 @@
 - [x] Générer fichier JSON avec toutes les données
 - [x] Ajouter bouton "Exporter BDD" dans page Backend Admin
 - [x] Téléchargement automatique du fichier JSON
+
+## Upload Logo Application
+- [x] Ajouter champ appLogo dans table company
+- [x] Ajouter upload logo dans Backend Admin (Settings)
+- [x] Mettre à jour header pour afficher logo dynamique
+- [ ] Utiliser logo dans génération PDF (devis/factures) - TODO frontend

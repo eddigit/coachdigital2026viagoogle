@@ -93,6 +93,7 @@ const companySchema = z.object({
   email: z.string().email().optional().nullable(),
   website: z.string().optional().nullable(),
   logoUrl: z.string().optional().nullable(),
+  appLogo: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
   iban: z.string().optional().nullable(),
   bic: z.string().optional().nullable(),

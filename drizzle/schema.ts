@@ -127,6 +127,7 @@ export const company = mysqlTable("company", {
   email: varchar("email", { length: 320 }),
   website: varchar("website", { length: 255 }),
   logoUrl: text("logoUrl"),
+  appLogo: text("appLogo"), // Logo de l'application (header + PDF)
   // Informations bancaires
   bankName: varchar("bankName", { length: 255 }),
   iban: varchar("iban", { length: 34 }),

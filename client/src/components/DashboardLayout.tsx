@@ -28,6 +28,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { trpc } from "@/lib/trpc";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -125,6 +126,7 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
+  const { data: company } = trpc.company.get.useQuery();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -188,17 +190,35 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
+                  {company?.appLogo ? (
+                    <img 
+                      src={company.appLogo} 
+                      alt="Logo" 
+                      className="h-8 w-auto object-contain"
+                    />
+                  ) : (
+                    <>
+                      <div className="w-8 h-8 border-2 border-primary rounded-sm flex items-center justify-center shrink-0">
+                        <span className="text-primary font-bold text-lg">G</span>
+                      </div>
+                      <span className="font-semibold tracking-tight truncate">
+                        Coach Digital
+                      </span>
+                    </>
+                  )}
+                </div>
+              ) : (
+                company?.appLogo ? (
+                  <img 
+                    src={company.appLogo} 
+                    alt="Logo" 
+                    className="h-8 w-auto object-contain"
+                  />
+                ) : (
                   <div className="w-8 h-8 border-2 border-primary rounded-sm flex items-center justify-center shrink-0">
                     <span className="text-primary font-bold text-lg">G</span>
                   </div>
-                  <span className="font-semibold tracking-tight truncate">
-                    Coach Digital
-                  </span>
-                </div>
-              ) : (
-                <div className="w-8 h-8 border-2 border-primary rounded-sm flex items-center justify-center shrink-0">
-                  <span className="text-primary font-bold text-lg">G</span>
-                </div>
+                )
               )}
             </div>
           </SidebarHeader>
