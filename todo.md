@@ -1006,3 +1006,24 @@
 
 ## Bug enregistrement template facture
 - [x] Corriger validation champ name vide dans documentTemplates.create (erreur 400)
+
+## Corrections Audit Technique
+
+### Bugs Critiques
+- [x] Édition documents : Implémenter CRUD complet sur lignes de facturation (DocumentEditForm.tsx)
+- [x] Violation Hooks React : Corriger appel useQuery dans handleDownloadPDF (ClientDocuments.tsx)
+- [x] ClientDashboard : Brancher compteurs sur queries tRPC réelles
+
+### Nouvelles Fonctionnalités ERP
+- [ ] Module Rentabilité : Afficher coût réel vs budget avec alerte 80%
+- [ ] Backlog Agile : Ajouter onglet Livrables (URLs staging/prod/figma)
+- [ ] Types de tâches : Ajouter champ type (Développement/Design/Bug/Coaching)
+
+### Module Collaboration
+- [ ] Commentaires : Système de commentaires sur Tâches et Projets
+- [ ] Notifications : Email automatique au coach lors de commentaire client
+- [ ] Approbation : Bouton "Approuver" pour devis/cahier des charges
+
+### Architecture
+- [ ] PDF Serveur : Déplacer génération PDF vers backend
+- [ ] Fuseaux horaires : Standardiser avec date-fns/dayjs

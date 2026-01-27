@@ -155,6 +155,17 @@ export function DocumentEditForm({ documentId, onSuccess, onCancel }: DocumentEd
       introduction: introduction || null,
       conclusion: conclusion || null,
       notes: notes || null,
+      lines: lines.map(line => ({
+        id: line.id,
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit,
+        unitPriceHt: line.unitPriceHt,
+        tvaRate: line.tvaRate,
+      })),
+      totalHt: totalHt.toFixed(2),
+      totalTva: totalTva.toFixed(2),
+      totalTtc: totalTtc.toFixed(2),
     });
   };
 
@@ -237,41 +248,78 @@ export function DocumentEditForm({ documentId, onSuccess, onCancel }: DocumentEd
         </CardContent>
       </Card>
 
-      {/* Lignes (lecture seule pour l'instant) */}
+      {/* Lignes de facturation */}
       <Card className="bg-card/50 border-border/50">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Lignes de facturation</CardTitle>
+          <Button type="button" onClick={addLine} size="sm" variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une ligne
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {lines.map((line, index) => (
-            <div key={index} className="p-4 bg-background/50 rounded-lg space-y-3">
+            <div key={index} className="p-4 bg-background/50 rounded-lg space-y-3 border border-border/50">
               <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-5">
                   <Label className="text-xs">Description</Label>
-                  <Input value={line.description} disabled />
+                  <Textarea 
+                    value={line.description} 
+                    onChange={(e) => updateLine(index, 'description', e.target.value)}
+                    placeholder="Description de la prestation"
+                    rows={2}
+                  />
                 </div>
 
                 <div className="col-span-2">
                   <Label className="text-xs">Quantité</Label>
-                  <Input value={line.quantity} disabled />
+                  <Input 
+                    type="number" 
+                    value={line.quantity} 
+                    onChange={(e) => updateLine(index, 'quantity', e.target.value)}
+                    step="0.01"
+                  />
                 </div>
 
                 <div className="col-span-2">
                   <Label className="text-xs">Prix HT</Label>
-                  <Input value={line.unitPriceHt} disabled />
+                  <Input 
+                    type="number" 
+                    value={line.unitPriceHt} 
+                    onChange={(e) => updateLine(index, 'unitPriceHt', e.target.value)}
+                    step="0.01"
+                  />
                 </div>
 
                 <div className="col-span-1">
                   <Label className="text-xs">TVA %</Label>
-                  <Input value={line.tvaRate} disabled />
+                  <Input 
+                    type="number" 
+                    value={line.tvaRate} 
+                    onChange={(e) => updateLine(index, 'tvaRate', e.target.value)}
+                    step="0.01"
+                  />
                 </div>
 
-                <div className="col-span-2">
+                <div className="col-span-1">
                   <Label className="text-xs">Total TTC</Label>
                   <Input 
                     value={((parseFloat(line.quantity) || 0) * (parseFloat(line.unitPriceHt) || 0) * (1 + (parseFloat(line.tvaRate) || 0) / 100)).toFixed(2) + " €"} 
                     disabled 
                   />
+                </div>
+
+                <div className="col-span-1 flex items-end">
+                  <Button 
+                    type="button" 
+                    onClick={() => removeLine(index)} 
+                    variant="ghost" 
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    disabled={lines.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </div>

@@ -19,6 +19,7 @@ export default function ClientDocuments({ clientUserId }: ClientDocumentsProps) 
   });
 
   const { data: companyData } = trpc.company.get.useQuery();
+  const utils = trpc.useUtils();
 
   const handleDownloadPDF = async (doc: any) => {
     if (!companyData) {
@@ -27,10 +28,10 @@ export default function ClientDocuments({ clientUserId }: ClientDocumentsProps) 
     }
 
     try {
-      // Récupérer les détails du document avec les lignes
-      const docDetails = await trpc.documents.get.useQuery({ id: doc.id });
+      // Récupérer les détails du document avec les lignes via fetch
+      const docDetails = await utils.documents.get.fetch({ id: doc.id });
       
-      if (!docDetails.data) {
+      if (!docDetails) {
         toast.error("Document introuvable");
         return;
       }
@@ -71,7 +72,7 @@ export default function ClientDocuments({ clientUserId }: ClientDocumentsProps) 
           country: doc.clientCountry || null,
           company: doc.clientCompany || null,
         },
-        lines: docDetails.data?.lines?.map((line) => ({
+        lines: docDetails.lines?.map((line: any) => ({
           description: line.description,
           quantity: parseFloat(line.quantity || "0"),
           unitPrice: parseFloat(line.unitPriceHt || "0"),

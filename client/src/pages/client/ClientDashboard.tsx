@@ -33,6 +33,16 @@ export default function ClientDashboard() {
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "credentials">("overview");
 
+  // Queries pour les compteurs
+  const { data: allProjects } = trpc.projects.list.useQuery(undefined, { enabled: !!clientUser });
+  const { data: allDocuments } = trpc.documents.list.useQuery(undefined, { enabled: !!clientUser });
+  const { data: allRequests } = trpc.clientRequests.list.useQuery(undefined, { enabled: !!clientUser });
+
+  // Filtrer par clientUserId (TODO: créer routes dédiées côté serveur)
+  const projectsCount = allProjects?.filter((p: any) => p.clientUserId === clientUser?.id).length || 0;
+  const documentsCount = allDocuments?.filter((d: any) => d.clientUserId === clientUser?.id).length || 0;
+  const pendingRequestsCount = allRequests?.filter((r: any) => r.clientUserId === clientUser?.id && r.status === 'pending').length || 0;
+
   useEffect(() => {
     // Vérifier l'authentification
     const token = localStorage.getItem("clientToken");
@@ -130,7 +140,7 @@ export default function ClientDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{projectsCount}</p>
               <p className="text-sm text-muted-foreground">Projets en cours</p>
             </CardContent>
           </Card>
@@ -145,7 +155,7 @@ export default function ClientDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">{documentsCount}</p>
               <p className="text-sm text-muted-foreground">Devis & Factures</p>
             </CardContent>
           </Card>

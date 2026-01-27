@@ -6,7 +6,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { getDb } from "./db";
 import * as clientAuth from "./clientAuth";
-import { clientUsers, projectRequirements } from "../drizzle/schema";
+import { clientUsers, projectRequirements, documentLines } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { notifyDocumentCreated, notifyQuoteConverted, getClientLoginUrl } from "./emailNotifications";
 import { stripeRouter } from "./stripeRouter";
@@ -428,9 +428,56 @@ export const appRouter = router({
         conclusion: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         pdfUrl: z.string().optional().nullable(),
+        lines: z.array(z.object({
+          id: z.number().optional(),
+          description: z.string(),
+          quantity: z.string(),
+          unit: z.string().default("unité"),
+          unitPriceHt: z.string(),
+          tvaRate: z.string().default("20.00"),
+        })).optional(),
+        totalHt: z.string().optional(),
+        totalTva: z.string().optional(),
+        totalTtc: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        return await db.updateDocument(input.id, input);
+        const { lines, ...documentData } = input;
+        
+        // Mettre à jour le document
+        await db.updateDocument(input.id, documentData);
+        
+        // Si des lignes sont fournies, les mettre à jour
+        if (lines) {
+          // Supprimer les anciennes lignes
+          const database = await getDb();
+          if (database) {
+            await database.delete(documentLines).where(eq(documentLines.documentId, input.id));
+            
+            // Insérer les nouvelles lignes
+            for (const line of lines) {
+              const qty = parseFloat(line.quantity) || 0;
+              const price = parseFloat(line.unitPriceHt) || 0;
+              const tva = parseFloat(line.tvaRate) || 0;
+              const lineHt = qty * price;
+              const lineTva = lineHt * (tva / 100);
+              const lineTtc = lineHt + lineTva;
+              
+              await database.insert(documentLines).values({
+                documentId: input.id,
+                description: line.description,
+                quantity: line.quantity,
+                unit: line.unit,
+                unitPriceHt: line.unitPriceHt,
+                tvaRate: line.tvaRate,
+                totalHt: lineHt.toFixed(2),
+                totalTva: lineTva.toFixed(2),
+                totalTtc: lineTtc.toFixed(2),
+              });
+            }
+          }
+        }
+        
+        return { success: true };
       }),
     
     delete: protectedProcedure
