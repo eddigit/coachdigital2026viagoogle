@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { useRoute } from "wouter";
-import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck, Plus, Edit, Download, Eye, EyeOff, Trash2, AlertTriangle, Pin, Key } from "lucide-react";
+import { ArrowLeft, Briefcase, FileText, Code, StickyNote, CheckSquare, FileCheck, Plus, Edit, Download, Eye, EyeOff, Trash2, AlertTriangle, Pin, Key, Pencil } from "lucide-react";
 import ProjectSecrets from "@/components/ProjectSecrets";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -28,6 +29,8 @@ export default function ProjectDetail() {
   const [visibleSecrets, setVisibleSecrets] = useState<Set<number>>(new Set());
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<any>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<any>(null);
   
   const utils = trpc.useUtils();
 
@@ -216,6 +219,61 @@ export default function ProjectDetail() {
       updateNote.mutate({ id: editingNote.id, ...data });
     } else {
       createNote.mutate(data);
+    }
+  };
+
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => {
+      toast.success("Tâche créée");
+      setIsTaskDialogOpen(false);
+      utils.tasks.byProject.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la création"),
+  });
+
+  const updateTask = trpc.tasks.update.useMutation({
+    onSuccess: () => {
+      toast.success("Tâche modifiée");
+      setIsTaskDialogOpen(false);
+      setEditingTask(null);
+      utils.tasks.byProject.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la modification"),
+  });
+
+  const deleteTask = trpc.tasks.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Tâche supprimée");
+      utils.tasks.byProject.invalidate();
+    },
+    onError: () => toast.error("Erreur lors de la suppression"),
+  });
+
+  const handleTaskSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const dueDateStr = formData.get("dueDate") as string;
+
+    const data = {
+      projectId,
+      clientId: project?.clientId,
+      title: formData.get("title") as string,
+      description: (formData.get("description") as string) || null,
+      status: (formData.get("status") as any) || "todo",
+      priority: (formData.get("priority") as any) || "normal",
+      dueDate: dueDateStr ? new Date(dueDateStr) : null,
+      period: (formData.get("period") as any) || "all_day",
+      completedAt: null,
+      estimatedHours: (formData.get("estimatedHours") as string) || null,
+      isBillable: formData.get("isBillable") === "on",
+      hourlyRate: (formData.get("hourlyRate") as string) || null,
+    };
+
+    if (editingTask) {
+      updateTask.mutate({ id: editingTask.id, data });
+    } else {
+      createTask.mutate(data);
     }
   };
 
@@ -1027,11 +1085,104 @@ export default function ProjectDetail() {
                 <h3 className="text-lg font-semibold">Tâches du Projet</h3>
                 <p className="text-sm text-muted-foreground">Liste des tâches liées à ce projet</p>
               </div>
-              <Link href="/tasks">
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />Nouvelle Tâche
-                </Button>
-              </Link>
+
+              <Dialog open={isTaskDialogOpen} onOpenChange={(open) => {
+                setIsTaskDialogOpen(open);
+                if (!open) setEditingTask(null);
+              }}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setEditingTask(null)}>
+                    <Plus className="h-4 w-4 mr-2" />Nouvelle Tâche
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{editingTask ? "Modifier" : "Créer"} une tâche</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleTaskSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Titre *</Label>
+                      <Input name="title" defaultValue={editingTask?.title} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Textarea name="description" defaultValue={editingTask?.description || ""} rows={3} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Statut</Label>
+                        <Select name="status" defaultValue={editingTask?.status || "todo"}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="todo">À faire</SelectItem>
+                            <SelectItem value="in_progress">En cours</SelectItem>
+                            <SelectItem value="review">En revue</SelectItem>
+                            <SelectItem value="done">Terminé</SelectItem>
+                            <SelectItem value="cancelled">Annulé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Priorité</Label>
+                        <Select name="priority" defaultValue={editingTask?.priority || "normal"}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Basse</SelectItem>
+                            <SelectItem value="normal">Normale</SelectItem>
+                            <SelectItem value="high">Haute</SelectItem>
+                            <SelectItem value="urgent">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Date</Label>
+                        <Input
+                          name="dueDate"
+                          type="date"
+                          defaultValue={editingTask?.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : ""}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Période</Label>
+                        <Select name="period" defaultValue={editingTask?.period || "all_day"}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all_day">Toute la journée</SelectItem>
+                            <SelectItem value="morning">Matinée</SelectItem>
+                            <SelectItem value="afternoon">Après-midi</SelectItem>
+                            <SelectItem value="evening">Soirée</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Heures estimées</Label>
+                        <Input name="estimatedHours" type="number" step="0.5" defaultValue={editingTask?.estimatedHours || ""} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Taux horaire (€)</Label>
+                        <Input name="hourlyRate" type="number" step="0.01" defaultValue={editingTask?.hourlyRate || ""} />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="isBillable" name="isBillable" defaultChecked={editingTask?.isBillable !== false} />
+                      <Label htmlFor="isBillable" className="cursor-pointer">Facturable</Label>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setIsTaskDialogOpen(false)}>Annuler</Button>
+                      <Button type="submit">{editingTask ? "Modifier" : "Créer"}</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
             
             {!tasks || tasks.length === 0 ? (
@@ -1039,11 +1190,9 @@ export default function ProjectDetail() {
                 <CardContent className="py-12 text-center">
                   <CheckSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground mb-4">Aucune tâche pour ce projet</p>
-                  <Link href="/tasks">
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />Créer la première tâche
-                    </Button>
-                  </Link>
+                  <Button onClick={() => setIsTaskDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />Créer la première tâche
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -1089,6 +1238,29 @@ export default function ProjectDetail() {
                               <span>{task.estimatedHours}h estimées</span>
                             )}
                           </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingTask(task);
+                              setIsTaskDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />Modifier
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (confirm("Supprimer cette tâche ?")) {
+                                deleteTask.mutate({ id: task.id });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
