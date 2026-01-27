@@ -1,4 +1,4 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useFirebaseAuth } from "@/_core/hooks/useFirebaseAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import RemindersWidget from "@/components/RemindersWidget";
@@ -6,13 +6,22 @@ import { DocumentViewsNotifications } from "@/components/DocumentActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { Users, Briefcase, CheckSquare, Euro } from "lucide-react";
-import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const { user, loading, isAuthenticated } = useFirebaseAuth();
   const { data: stats, isLoading: statsLoading } = trpc.stats.get.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [loading, isAuthenticated, setLocation]);
 
   if (loading) {
     return (
@@ -26,22 +35,7 @@ export default function Home() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center max-w-md mx-auto p-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">COACH DIGITAL</h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Plateforme de gestion de coaching pour avocats et chefs d'entreprise
-          </p>
-          <a
-            href={getLoginUrl()}
-            className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-          >
-            Se connecter
-          </a>
-        </div>
-      </div>
-    );
+    return null; // Will redirect via useEffect
   }
 
   return (
@@ -50,7 +44,7 @@ export default function Home() {
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Bienvenue, {user?.name || "Coach"}
+            Bienvenue, {user?.displayName || user?.email || "Coach"}
           </p>
         </div>
 

@@ -1,47 +1,46 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
-import { getDb } from "./db";
-import * as schema from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { Note } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const notesRouter = router({
   // Lister toutes les notes
   list: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return [];
-    const allNotes = await db
-      .select()
-      .from(schema.notes)
-      .orderBy(desc(schema.notes.pinned), desc(schema.notes.createdAt));
-    return allNotes;
+    const snapshot = await firestore.collection('notes')
+      .orderBy('pinned', 'desc')
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => mapDoc<Note>(doc));
   }),
 
   // Lister les notes par client
   listByClient: protectedProcedure
     .input(z.object({ clientId: z.number() }))
-    .query(async ({ input }: { input: { clientId: number } }) => {
-      const db = await getDb();
-      if (!db) return [];
-      const clientNotes = await db
-        .select()
-        .from(schema.notes)
-        .where(eq(schema.notes.clientId, input.clientId))
-        .orderBy(desc(schema.notes.pinned), desc(schema.notes.createdAt));
-      return clientNotes;
+    .query(async ({ input }) => {
+      const snapshot = await firestore.collection('notes')
+        .where('clientId', '==', input.clientId)
+        .orderBy('pinned', 'desc')
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs.map(doc => mapDoc<Note>(doc));
     }),
 
   // Lister les notes par projet
   listByProject: protectedProcedure
     .input(z.object({ projectId: z.number() }))
-    .query(async ({ input }: { input: { projectId: number } }) => {
-      const db = await getDb();
-      if (!db) return [];
-      const projectNotes = await db
-        .select()
-        .from(schema.notes)
-        .where(eq(schema.notes.projectId, input.projectId))
-        .orderBy(desc(schema.notes.pinned), desc(schema.notes.createdAt));
-      return projectNotes;
+    .query(async ({ input }) => {
+      const snapshot = await firestore.collection('notes')
+        .where('projectId', '==', input.projectId)
+        .orderBy('pinned', 'desc')
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs.map(doc => mapDoc<Note>(doc));
     }),
 
   // Créer une note
@@ -58,11 +57,15 @@ export const notesRouter = router({
         isClientVisible: z.boolean().default(false),
       })
     )
-    .mutation(async ({ input }: { input: any }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      const result = await db.insert(schema.notes).values(input);
-      return { success: true, id: result[0].insertId };
+    .mutation(async ({ input }) => {
+      const id = await getNextId('notes');
+      await firestore.collection('notes').doc(String(id)).set({
+        ...input,
+        id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      return { success: true, id };
     }),
 
   // Mettre à jour une note
@@ -80,37 +83,31 @@ export const notesRouter = router({
         isClientVisible: z.boolean().optional(),
       })
     )
-    .mutation(async ({ input }: { input: Partial<z.infer<typeof schema.notes.$inferSelect>> & { id: number } }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+    .mutation(async ({ input }) => {
       const { id, ...updateData } = input;
-      await db
-        .update(schema.notes)
-        .set(updateData)
-        .where(eq(schema.notes.id, id));
+      await firestore.collection('notes').doc(String(id)).update({
+        ...updateData,
+        updatedAt: new Date()
+      });
       return { success: true };
     }),
 
   // Supprimer une note
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }: { input: { id: number } }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      await db.delete(schema.notes).where(eq(schema.notes.id, input.id));
+    .mutation(async ({ input }) => {
+      await firestore.collection('notes').doc(String(input.id)).delete();
       return { success: true };
     }),
 
   // Épingler/désépingler une note
   togglePin: protectedProcedure
     .input(z.object({ id: z.number(), pinned: z.boolean() }))
-    .mutation(async ({ input }: { input: { id: number; pinned: boolean } }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      await db
-        .update(schema.notes)
-        .set({ pinned: input.pinned })
-        .where(eq(schema.notes.id, input.id));
+    .mutation(async ({ input }) => {
+      await firestore.collection('notes').doc(String(input.id)).update({
+        pinned: input.pinned,
+        updatedAt: new Date()
+      });
       return { success: true };
     }),
 });

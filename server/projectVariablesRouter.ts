@@ -1,20 +1,22 @@
 import { router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb } from "./db";
-import { projectVariables } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { ProjectVariable } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const projectVariablesRouter = router({
   list: protectedProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      return db
-        .select()
-        .from(projectVariables)
-        .where(eq(projectVariables.projectId, input.projectId));
+      const snapshot = await firestore.collection('projectVariables')
+        .where('projectId', '==', input.projectId)
+        .get();
+      return snapshot.docs.map(doc => mapDoc<ProjectVariable>(doc));
     }),
 
   create: protectedProcedure
@@ -29,10 +31,11 @@ export const projectVariablesRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      await db.insert(projectVariables).values(input);
+      const id = await getNextId('projectVariables');
+      await firestore.collection('projectVariables').doc(String(id)).set({
+        ...input,
+        id
+      });
       return { success: true };
     }),
 
@@ -48,26 +51,15 @@ export const projectVariablesRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
       const { id, ...data } = input;
-      await db
-        .update(projectVariables)
-        .set(data)
-        .where(eq(projectVariables.id, id));
+      await firestore.collection('projectVariables').doc(String(id)).update(data);
       return { success: true };
     }),
 
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      await db
-        .delete(projectVariables)
-        .where(eq(projectVariables.id, input.id));
+      await firestore.collection('projectVariables').doc(String(input.id)).delete();
       return { success: true };
     }),
 });

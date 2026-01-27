@@ -1,51 +1,64 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
-import { timeEntries } from "../drizzle/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { TimeEntry } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const timeEntriesRouter = router({
   // Lister les entrées de temps pour une date donnée
   listByDate: protectedProcedure
     .input(z.object({ date: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      // Input date is YYYY-MM-DD string
+      const start = new Date(input.date);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(input.date);
+      end.setHours(23, 59, 59, 999);
 
-      const entries = await db
-        .select()
-        .from(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.userId, ctx.user.id),
-            sql`DATE(${timeEntries.date}) = DATE(${input.date})`
-          )
-        )
-        .orderBy(timeEntries.period, timeEntries.createdAt);
+      const snapshot = await firestore.collection('timeEntries')
+        .where('userId', '==', ctx.user.id)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get(); // OrderBy needs index with filter, might fail if not indexed.
+      // We sort in memory for safety
 
-      return entries;
+      const entries = snapshot.docs.map(doc => mapDoc<TimeEntry>(doc));
+      return entries.sort((a, b) => {
+        // Sort by period, then createdAt
+        const pOrder = { morning: 1, afternoon: 2, evening: 3 };
+        if (pOrder[a.period] !== pOrder[b.period]) return pOrder[a.period] - pOrder[b.period];
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      });
     }),
 
   // Lister les entrées de temps pour une période donnée
   listByPeriod: protectedProcedure
     .input(z.object({ startDate: z.string(), endDate: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const start = new Date(input.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(input.endDate);
+      end.setHours(23, 59, 59, 999);
 
-      const entries = await db
-        .select()
-        .from(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.userId, ctx.user.id),
-            sql`DATE(${timeEntries.date}) >= DATE(${input.startDate})`,
-            sql`DATE(${timeEntries.date}) <= DATE(${input.endDate})`
-          )
-        )
-        .orderBy(timeEntries.date, timeEntries.period);
+      const snapshot = await firestore.collection('timeEntries')
+        .where('userId', '==', ctx.user.id)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get();
 
-      return entries;
+      const entries = snapshot.docs.map(doc => mapDoc<TimeEntry>(doc));
+      // Sort by date then period
+      return entries.sort((a, b) => {
+        const dDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dDiff !== 0) return dDiff;
+        const pOrder = { morning: 1, afternoon: 2, evening: 3 };
+        return pOrder[a.period] - pOrder[b.period];
+      });
     }),
 
   // Créer une entrée de temps
@@ -67,32 +80,24 @@ export const timeEntriesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const { date, hourlyRate, ...rest } = input;
-      
-      // Préparer les données pour l'insertion
+
       const insertData: any = {
         userId: ctx.user.id,
         date: new Date(date),
+        hourlyRate: hourlyRate || null,
         ...rest,
       };
-      
-      // Ajouter hourlyRate seulement s'il est défini
-      if (hourlyRate) {
-        insertData.hourlyRate = hourlyRate;
-      }
-      
-      const result = await db.insert(timeEntries).values(insertData);
 
-      // Récupérer l'ID inséré
-      const insertId = result[0]?.insertId;
-      if (!insertId) {
-        throw new Error("Failed to get insert ID");
-      }
+      const id = await getNextId('timeEntries');
+      await firestore.collection('timeEntries').doc(String(id)).set({
+        ...insertData,
+        id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-      return { success: true, id: Number(insertId) };
+      return { success: true, id };
     }),
 
   // Mettre à jour une entrée de temps
@@ -117,32 +122,17 @@ export const timeEntriesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const { id, ...updates } = input;
 
-      // Convertir les dates string en Date
+      // Convert dates
       const cleanUpdates: any = { ...updates };
-      if (cleanUpdates.date) {
-        cleanUpdates.date = new Date(cleanUpdates.date);
-      }
-      if (cleanUpdates.startTime) {
-        cleanUpdates.startTime = new Date(cleanUpdates.startTime);
-      }
-      if (cleanUpdates.endTime) {
-        cleanUpdates.endTime = new Date(cleanUpdates.endTime);
-      }
+      if (cleanUpdates.date) cleanUpdates.date = new Date(cleanUpdates.date);
+      if (cleanUpdates.startTime) cleanUpdates.startTime = new Date(cleanUpdates.startTime);
+      if (cleanUpdates.endTime) cleanUpdates.endTime = new Date(cleanUpdates.endTime);
 
-      await db
-        .update(timeEntries)
-        .set(cleanUpdates)
-        .where(
-          and(
-            eq(timeEntries.id, id),
-            eq(timeEntries.userId, ctx.user.id)
-          )
-        );
+      cleanUpdates.updatedAt = new Date();
+
+      await firestore.collection('timeEntries').doc(String(id)).update(cleanUpdates);
 
       return { success: true };
     }),
@@ -151,83 +141,50 @@ export const timeEntriesRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      await db
-        .delete(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.id, input.id),
-            eq(timeEntries.userId, ctx.user.id)
-          )
-        );
-
+      await firestore.collection('timeEntries').doc(String(input.id)).delete();
       return { success: true };
     }),
 
-  // Démarrer le chronomètre pour une entrée
+  // Démarrer le chronomètre
   startTimer: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      await db
-        .update(timeEntries)
-        .set({
-          startTime: new Date(),
-          status: "in_progress",
-        })
-        .where(
-          and(
-            eq(timeEntries.id, input.id),
-            eq(timeEntries.userId, ctx.user.id)
-          )
-        );
-
+      await firestore.collection('timeEntries').doc(String(input.id)).update({
+        startTime: new Date(),
+        status: "in_progress",
+        updatedAt: new Date()
+      });
       return { success: true };
     }),
 
-  // Arrêter le chronomètre et calculer la durée
+  // Arrêter le chronomètre
   stopTimer: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const doc = await firestore.collection('timeEntries').doc(String(input.id)).get();
+      if (!doc.exists) throw new Error("Entry not found");
+      const entry = mapDoc<TimeEntry>(doc);
 
-      // Récupérer l'entrée pour calculer la durée
-      const [entry] = await db
-        .select()
-        .from(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.id, input.id),
-            eq(timeEntries.userId, ctx.user.id)
-          )
-        );
+      if (!entry.startTime) throw new Error("Timer not started");
 
-      if (!entry || !entry.startTime) {
-        throw new Error("Entry not found or timer not started");
-      }
+      const startTime = entry.startTime instanceof Date ? entry.startTime : new Date(entry.startTime as any); // Handle Firestore timestamp
+      // Usually mapDoc converts Timestamp to Date if we had a converter, but here mapDoc casts data().
+      // Firestore data() returns Timestamp objects. We need to convert them.
+      // My mapDoc is simple cast. It doesn't convert Timestamps.
+      // I should assume they might be Timestamps and convert if needed, or rely on JS Date compatible methods if Firestore SDK provides them (toDate()).
+      // Firestore Timestamp has toDate().
+
+      const startMs = (startTime as any).toDate ? (startTime as any).toDate().getTime() : new Date(startTime).getTime();
 
       const endTime = new Date();
-      const startTime = new Date(entry.startTime);
-      const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
+      const durationMinutes = Math.round((endTime.getTime() - startMs) / 60000);
 
-      await db
-        .update(timeEntries)
-        .set({
-          endTime: endTime,
-          duration: durationMinutes,
-          status: "completed",
-        })
-        .where(
-          and(
-            eq(timeEntries.id, input.id),
-            eq(timeEntries.userId, ctx.user.id)
-          )
-        );
+      await firestore.collection('timeEntries').doc(String(input.id)).update({
+        endTime: endTime,
+        duration: durationMinutes,
+        status: "completed",
+        updatedAt: new Date()
+      });
 
       return { success: true, duration: durationMinutes };
     }),
@@ -236,25 +193,21 @@ export const timeEntriesRouter = router({
   statsByClient: protectedProcedure
     .input(z.object({ startDate: z.string(), endDate: z.string() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const start = new Date(input.startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(input.endDate);
+      end.setHours(23, 59, 59, 999);
 
-      // Cette requête nécessiterait un JOIN avec la table clients
-      // Pour l'instant, on retourne les entrées groupées par clientId
-      const entries = await db
-        .select()
-        .from(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.userId, ctx.user.id),
-            sql`DATE(${timeEntries.date}) >= DATE(${input.startDate})`,
-            sql`DATE(${timeEntries.date}) <= DATE(${input.endDate})`
-          )
-        );
+      const snapshot = await firestore.collection('timeEntries')
+        .where('userId', '==', ctx.user.id)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get();
 
-      // Grouper par clientId et calculer les totaux
+      const entries = snapshot.docs.map(doc => mapDoc<TimeEntry>(doc));
+
       const stats = entries.reduce((acc: any, entry) => {
-        const clientId = entry.clientId || 0;
+        const clientId = Number(entry.clientId || 0);
         if (!acc[clientId]) {
           acc[clientId] = {
             clientId,

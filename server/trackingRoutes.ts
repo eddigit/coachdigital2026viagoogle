@@ -1,7 +1,11 @@
 import { Express, Request, Response } from "express";
-import { getDb } from "./db";
-import { emailTracking, emailBlacklist } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getDb, getNextId } from "./db";
+import { db as firestore } from "./firestore";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 /**
  * Routes publiques pour le tracking des emails
@@ -14,30 +18,24 @@ export function registerTrackingRoutes(app: Express) {
     const ipAddress = req.ip || req.headers["x-forwarded-for"] as string;
 
     try {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Récupérer le tracking
-      const trackingResult = await db
-        .select()
-        .from(emailTracking)
-        .where(eq(emailTracking.trackingId, trackingId))
-        .limit(1);
+      const snapshot = await firestore.collection('emailTracking')
+        .where('trackingId', '==', trackingId)
+        .limit(1)
+        .get();
 
-      if (trackingResult.length > 0) {
-        const tracking = trackingResult[0];
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        const tracking = doc.data();
 
         // Mettre à jour le tracking
-        await db
-          .update(emailTracking)
-          .set({
-            opened: true,
-            openedAt: tracking.openedAt || new Date(),
-            openCount: (tracking.openCount || 0) + 1,
-            userAgent,
-            ipAddress,
-          })
-          .where(eq(emailTracking.id, tracking.id));
+        await doc.ref.update({
+          opened: true,
+          openedAt: tracking.openedAt || new Date(),
+          openCount: (tracking.openCount || 0) + 1,
+          userAgent,
+          ipAddress,
+        });
       }
     } catch (error) {
       console.error("Error tracking email open:", error);
@@ -68,30 +66,24 @@ export function registerTrackingRoutes(app: Express) {
     const ipAddress = req.ip || req.headers["x-forwarded-for"] as string;
 
     try {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Récupérer le tracking
-      const trackingResult = await db
-        .select()
-        .from(emailTracking)
-        .where(eq(emailTracking.trackingId, trackingId))
-        .limit(1);
+      const snapshot = await firestore.collection('emailTracking')
+        .where('trackingId', '==', trackingId)
+        .limit(1)
+        .get();
 
-      if (trackingResult.length > 0) {
-        const tracking = trackingResult[0];
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        const tracking = doc.data();
 
         // Mettre à jour le tracking
-        await db
-          .update(emailTracking)
-          .set({
-            clicked: true,
-            clickedAt: tracking.clickedAt || new Date(),
-            clickCount: (tracking.clickCount || 0) + 1,
-            userAgent,
-            ipAddress,
-          })
-          .where(eq(emailTracking.id, tracking.id));
+        await doc.ref.update({
+          clicked: true,
+          clickedAt: tracking.clickedAt || new Date(),
+          clickCount: (tracking.clickCount || 0) + 1,
+          userAgent,
+          ipAddress,
+        });
       }
     } catch (error) {
       console.error("Error tracking email click:", error);
@@ -107,9 +99,6 @@ export function registerTrackingRoutes(app: Express) {
     const { email, token } = req.params;
 
     try {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Vérifier le token (simple hash de l'email)
       const expectedToken = Buffer.from(email).toString("base64");
       if (token !== expectedToken) {
@@ -133,12 +122,17 @@ export function registerTrackingRoutes(app: Express) {
 
       // Ajouter à la blacklist
       try {
-        await db.insert(emailBlacklist).values({
+        const id = await getNextId('emailBlacklist');
+        await firestore.collection('emailBlacklist').doc(String(id)).set({
+          id,
           email,
           reason: "Unsubscribed via email link",
+          unsubscribedAt: new Date(),
+          createdAt: new Date()
         });
       } catch (error) {
-        // Déjà blacklisté, ignorer l'erreur
+        // Déjà blacklisté/erreur, ignorer
+        console.error("Blacklist insert error (maybe duplicate?):", error);
       }
 
       // Page de confirmation

@@ -35,10 +35,13 @@ import { usePWA } from "./hooks/usePWA";
 import InstallPWABanner from "./components/InstallPWABanner";
 import NotificationPermissionPrompt from "./components/NotificationPermissionPrompt";
 
+import Login from "./pages/Login";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
       <Route path="/clients" component={Clients} />
       <Route path="/projects" component={Projects} />
       <Route path="/tasks" component={Tasks} />
@@ -60,17 +63,17 @@ function Router() {
       <Route path="/email-templates" component={EmailTemplates} />
       <Route path="/reviews" component={Reviews} />
       <Route path="/prospection" component={Prospection} />
-      
+
       {/* Routes espace client */}
       <Route path="/client/login" component={ClientLogin} />
       <Route path="/client/dashboard" component={ClientDashboard} />
       <Route path="/client/invitation/:token" component={ClientInvitation} />
       <Route path="/client" component={ClientLogin} />
-      
+
       {/* Routes documents publiques */}
       <Route path="/sign/:token" component={SignDocument} />
       <Route path="/view/:token" component={ViewDocument} />
-      
+
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -80,7 +83,7 @@ function Router() {
 function App() {
   // Initialiser PWA
   usePWA();
-  
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">

@@ -1,6 +1,11 @@
-import { eq, and, or, desc } from "drizzle-orm";
-import { getDb } from "./db";
-import { messages, type InsertMessage } from "../drizzle/schema";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { Message, InsertMessage } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 /**
  * Récupérer les messages pour un utilisateur (admin ou client)
@@ -9,25 +14,25 @@ export async function getMessagesForUser(
   userId: number,
   userType: "admin" | "client"
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  return await db
-    .select()
-    .from(messages)
-    .where(
-      or(
-        and(
-          eq(messages.recipientId, userId),
-          eq(messages.recipientType, userType)
-        ),
-        and(
-          eq(messages.senderId, userId),
-          eq(messages.senderType, userType)
-        )
-      )
-    )
-    .orderBy(desc(messages.createdAt));
+  // Firestore OR query simulation
+  const received = await firestore.collection('messages')
+    .where('recipientId', '==', userId)
+    .where('recipientType', '==', userType)
+    .get();
+
+  const sent = await firestore.collection('messages')
+    .where('senderId', '==', userId)
+    .where('senderType', '==', userType)
+    .get();
+
+  const allDocs = [...received.docs, ...sent.docs];
+  // Deduplicate by ID just in case (though logic shouldn't overlap usually unless self-message)
+  const uniqueDocs = Array.from(new Map(allDocs.map(d => [d.id, d])).values());
+
+  const messages = uniqueDocs.map(doc => mapDoc<Message>(doc));
+
+  // Sort descending
+  return messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
 /**
@@ -39,56 +44,50 @@ export async function getConversation(
   user2Id: number,
   user2Type: "admin" | "client"
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  return await db
-    .select()
-    .from(messages)
-    .where(
-      or(
-        and(
-          eq(messages.senderId, user1Id),
-          eq(messages.senderType, user1Type),
-          eq(messages.recipientId, user2Id),
-          eq(messages.recipientType, user2Type)
-        ),
-        and(
-          eq(messages.senderId, user2Id),
-          eq(messages.senderType, user2Type),
-          eq(messages.recipientId, user1Id),
-          eq(messages.recipientType, user1Type)
-        )
-      )
-    )
-    .orderBy(messages.createdAt);
+  const q1 = await firestore.collection('messages')
+    .where('senderId', '==', user1Id)
+    .where('senderType', '==', user1Type)
+    .where('recipientId', '==', user2Id)
+    .where('recipientType', '==', user2Type)
+    .get();
+
+  const q2 = await firestore.collection('messages')
+    .where('senderId', '==', user2Id)
+    .where('senderType', '==', user2Type)
+    .where('recipientId', '==', user1Id)
+    .where('recipientType', '==', user1Type)
+    .get();
+
+  const allDocs = [...q1.docs, ...q2.docs];
+  const uniqueDocs = Array.from(new Map(allDocs.map(d => [d.id, d])).values());
+  const messages = uniqueDocs.map(doc => mapDoc<Message>(doc));
+
+  // Sort ascending for conversation
+  return messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 }
 
 /**
  * Créer un nouveau message
  */
 export async function createMessage(data: InsertMessage) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(messages).values(data);
-  return Number(result[0].insertId);
+  const id = await getNextId('messages');
+  await firestore.collection('messages').doc(String(id)).set({
+    ...data,
+    id,
+    createdAt: new Date(),
+    isRead: false
+  });
+  return id;
 }
 
 /**
  * Marquer un message comme lu
  */
 export async function markMessageAsRead(messageId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db
-    .update(messages)
-    .set({
-      isRead: true,
-      readAt: new Date(),
-    })
-    .where(eq(messages.id, messageId));
+  await firestore.collection('messages').doc(String(messageId)).update({
+    isRead: true,
+    readAt: new Date(),
+  });
 }
 
 /**
@@ -100,24 +99,20 @@ export async function markConversationAsRead(
   senderId: number,
   senderType: "admin" | "client"
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  await db
-    .update(messages)
-    .set({
-      isRead: true,
-      readAt: new Date(),
-    })
-    .where(
-      and(
-        eq(messages.recipientId, recipientId),
-        eq(messages.recipientType, recipientType),
-        eq(messages.senderId, senderId),
-        eq(messages.senderType, senderType),
-        eq(messages.isRead, false)
-      )
-    );
+  // Query messages where I am recipient and sender is other, and isRead is false
+  const snapshot = await firestore.collection('messages')
+    .where('recipientId', '==', recipientId)
+    .where('recipientType', '==', recipientType)
+    .where('senderId', '==', senderId)
+    .where('senderType', '==', senderType)
+    .where('isRead', '==', false)
+    .get();
+
+  const batch = firestore.batch();
+  snapshot.docs.forEach(doc => {
+    batch.update(doc.ref, { isRead: true, readAt: new Date() });
+  });
+  await batch.commit();
 }
 
 /**
@@ -127,35 +122,22 @@ export async function countUnreadMessages(
   userId: number,
   userType: "admin" | "client"
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db
-    .select()
-    .from(messages)
-    .where(
-      and(
-        eq(messages.recipientId, userId),
-        eq(messages.recipientType, userType),
-        eq(messages.isRead, false)
-      )
-    );
-  
-  return result.length;
+  // Usually this needs a count aggregation
+  const snapshot = await firestore.collection('messages')
+    .where('recipientId', '==', userId)
+    .where('recipientType', '==', userType)
+    .where('isRead', '==', false)
+    .count()
+    .get();
+
+  return snapshot.data().count;
 }
 
 /**
  * Récupérer un message par ID
  */
 export async function getMessageById(messageId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.id, messageId))
-    .limit(1);
-  
-  return result[0] || null;
+  const doc = await firestore.collection('messages').doc(String(messageId)).get();
+  if (!doc.exists) return null;
+  return mapDoc<Message>(doc);
 }

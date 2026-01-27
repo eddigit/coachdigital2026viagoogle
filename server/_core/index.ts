@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+// import { registerOAuthRoutes } from "./oauth";
 import { registerTrackingRoutes } from "../trackingRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -31,7 +31,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  
+
   // Stripe webhook MUST be registered BEFORE express.json() for signature verification
   const { handleStripeWebhook } = await import("../stripeWebhook");
   app.post(
@@ -39,13 +39,13 @@ async function startServer() {
     express.raw({ type: "application/json" }),
     handleStripeWebhook
   );
-  
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
-  
+  // registerOAuthRoutes(app);
+
   // Email tracking routes (public)
   registerTrackingRoutes(app);
   // tRPC API
@@ -57,7 +57,7 @@ async function startServer() {
     })
   );
   // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV !== "production") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -66,7 +66,7 @@ async function startServer() {
   // En production, utiliser directement le PORT fourni par l'environnement
   // En développement, chercher un port disponible
   const preferredPort = parseInt(process.env.PORT || "3000");
-  
+
   if (process.env.NODE_ENV === "production") {
     // En production, écouter sur 0.0.0.0 et le port exact fourni
     server.listen(preferredPort, "0.0.0.0", () => {

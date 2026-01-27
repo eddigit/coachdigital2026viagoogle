@@ -105,3 +105,6 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+service-account.json
+node_modules_old/
+package-lock.json

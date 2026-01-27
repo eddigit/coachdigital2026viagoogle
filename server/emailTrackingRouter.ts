@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "./_core/trpc";
-import { getDb } from "./db";
-import { emailTracking, emailBlacklist, emailQueue, leads } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { EmailTracking, EmailQueueItem, EmailBlacklist } from "./schema";
 import { randomBytes } from "crypto";
 
-/**
- * Router pour le tracking des emails (ouvertures, clics) et la blacklist
- */
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
+
 export const emailTrackingRouter = router({
   // Créer un tracking ID pour un email
   createTracking: protectedProcedure
@@ -18,16 +20,21 @@ export const emailTrackingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Générer un tracking ID unique
       const trackingId = randomBytes(32).toString("hex");
 
-      const result = await db.insert(emailTracking).values({
+      const id = await getNextId('emailTracking');
+      await firestore.collection('emailTracking').doc(String(id)).set({
+        id,
         emailQueueId: input.emailQueueId,
         leadId: input.leadId,
         trackingId,
+        opened: false,
+        clicked: false,
+        openCount: 0,
+        clickCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       return { trackingId };
@@ -43,33 +50,27 @@ export const emailTrackingRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('emailTracking')
+        .where('trackingId', '==', input.trackingId)
+        .limit(1)
+        .get();
 
-      // Récupérer le tracking
-      const trackingResult = await db
-        .select()
-        .from(emailTracking)
-        .where(eq(emailTracking.trackingId, input.trackingId))
-        .limit(1);
-
-      if (trackingResult.length === 0) {
+      if (snapshot.empty) {
         return { success: false, error: "Tracking not found" };
       }
 
-      const tracking = trackingResult[0];
+      const doc = snapshot.docs[0];
+      const tracking = doc.data();
 
       // Mettre à jour le tracking
-      await db
-        .update(emailTracking)
-        .set({
-          opened: true,
-          openedAt: tracking.openedAt || new Date(),
-          openCount: (tracking.openCount || 0) + 1,
-          userAgent: input.userAgent,
-          ipAddress: input.ipAddress,
-        })
-        .where(eq(emailTracking.id, tracking.id));
+      await doc.ref.update({
+        opened: true,
+        openedAt: tracking.openedAt || new Date(),
+        openCount: (tracking.openCount || 0) + 1,
+        userAgent: input.userAgent || tracking.userAgent || null,
+        ipAddress: input.ipAddress || tracking.ipAddress || null,
+        updatedAt: new Date()
+      });
 
       return { success: true };
     }),
@@ -84,33 +85,27 @@ export const emailTrackingRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('emailTracking')
+        .where('trackingId', '==', input.trackingId)
+        .limit(1)
+        .get();
 
-      // Récupérer le tracking
-      const trackingResult = await db
-        .select()
-        .from(emailTracking)
-        .where(eq(emailTracking.trackingId, input.trackingId))
-        .limit(1);
-
-      if (trackingResult.length === 0) {
+      if (snapshot.empty) {
         return { success: false, error: "Tracking not found" };
       }
 
-      const tracking = trackingResult[0];
+      const doc = snapshot.docs[0];
+      const tracking = doc.data();
 
       // Mettre à jour le tracking
-      await db
-        .update(emailTracking)
-        .set({
-          clicked: true,
-          clickedAt: tracking.clickedAt || new Date(),
-          clickCount: (tracking.clickCount || 0) + 1,
-          userAgent: input.userAgent,
-          ipAddress: input.ipAddress,
-        })
-        .where(eq(emailTracking.id, tracking.id));
+      await doc.ref.update({
+        clicked: true,
+        clickedAt: tracking.clickedAt || new Date(),
+        clickCount: (tracking.clickCount || 0) + 1,
+        userAgent: input.userAgent || tracking.userAgent || null,
+        ipAddress: input.ipAddress || tracking.ipAddress || null,
+        updatedAt: new Date()
+      });
 
       return { success: true };
     }),
@@ -119,25 +114,34 @@ export const emailTrackingRouter = router({
   getCampaignStats: protectedProcedure
     .input(z.object({ campaignId: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Récupérer tous les emails de la campagne
-      const emails = await db
-        .select()
-        .from(emailQueue)
-        .where(eq(emailQueue.campaignId, input.campaignId));
+      const emailsSnapshot = await firestore.collection('emailQueue')
+        .where('campaignId', '==', input.campaignId)
+        .get();
 
-      // Récupérer les trackings
-      const trackings = await db
-        .select()
-        .from(emailTracking)
-        .where(
-          eq(
-            emailTracking.emailQueueId,
-            emails.length > 0 ? emails[0].id : 0
-          )
+      const emails = emailsSnapshot.docs.map(doc => mapDoc<EmailQueueItem>(doc));
+
+      const emailIds = emails.map(e => e.id);
+
+      let trackings: EmailTracking[] = [];
+      if (emailIds.length > 0) {
+        // Process in batches of 10 for 'in' query, or just fetch all trackings and filter?
+        // If expecting many events, fetch per email might be slow.
+        // Better: If we added campaignId to tracking, it would be fast.
+        // Assuming we didn't add it yet.
+        // Fallback: Loop and fetch. Parallelized.
+
+        const promises = emailIds.map(id =>
+          firestore.collection('emailTracking')
+            .where('emailQueueId', '==', id)
+            .get()
         );
+
+        const results = await Promise.all(promises);
+        results.forEach(snap => {
+          snap.docs.forEach(d => trackings.push(mapDoc<EmailTracking>(d)));
+        });
+      }
 
       const stats = {
         totalSent: emails.filter((e) => e.status === "sent").length,
@@ -164,72 +168,66 @@ export const emailTrackingRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      try {
-        await db.insert(emailBlacklist).values({
-          email: input.email,
-          reason: input.reason,
-        });
-
-        return { success: true };
-      } catch (error) {
-        // Email déjà dans la blacklist
+      // Check duplicate
+      const existSnap = await firestore.collection('emailBlacklist')
+        .where('email', '==', input.email)
+        .get();
+      if (!existSnap.empty) {
         return { success: false, error: "Email already blacklisted" };
       }
+
+      const id = await getNextId('emailBlacklist');
+      await firestore.collection('emailBlacklist').doc(String(id)).set({
+        id,
+        email: input.email,
+        reason: input.reason || null,
+        createdAt: new Date()
+      });
+
+      return { success: true };
     }),
 
   // Retirer un email de la blacklist
   removeFromBlacklist: protectedProcedure
     .input(z.object({ email: z.string().email() }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('emailBlacklist')
+        .where('email', '==', input.email)
+        .get();
 
-      await db
-        .delete(emailBlacklist)
-        .where(eq(emailBlacklist.email, input.email));
+      const batch = firestore.batch();
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
 
       return { success: true };
     }),
 
   // Lister les emails blacklistés
   listBlacklist: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-
-    return await db
-      .select()
-      .from(emailBlacklist)
-      .orderBy(desc(emailBlacklist.createdAt));
+    const snapshot = await firestore.collection('emailBlacklist')
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => mapDoc<EmailBlacklist>(doc));
   }),
-  
+
   // Alias pour getBlacklist
   getBlacklist: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-
-    return await db
-      .select()
-      .from(emailBlacklist)
-      .orderBy(desc(emailBlacklist.createdAt));
+    const snapshot = await firestore.collection('emailBlacklist')
+      .orderBy('createdAt', 'desc')
+      .get();
+    return snapshot.docs.map(doc => mapDoc<EmailBlacklist>(doc));
   }),
 
   // Vérifier si un email est blacklisté
   isBlacklisted: protectedProcedure
     .input(z.object({ email: z.string().email() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('emailBlacklist')
+        .where('email', '==', input.email)
+        .limit(1)
+        .get();
 
-      const result = await db
-        .select()
-        .from(emailBlacklist)
-        .where(eq(emailBlacklist.email, input.email))
-        .limit(1);
-
-      return result.length > 0;
+      return !snapshot.empty;
     }),
 
   // Désabonnement public (pour les liens dans les emails)
@@ -241,9 +239,6 @@ export const emailTrackingRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       // Vérifier le token (simple hash de l'email pour la démo)
       const expectedToken = Buffer.from(input.email).toString("base64");
       if (input.token !== expectedToken) {
@@ -252,14 +247,18 @@ export const emailTrackingRouter = router({
 
       // Ajouter à la blacklist
       try {
-        await db.insert(emailBlacklist).values({
+        const id = await getNextId('emailBlacklist');
+        await firestore.collection('emailBlacklist').doc(String(id)).set({
+          id,
           email: input.email,
           reason: "Unsubscribed via email link",
+          createdAt: new Date()
         });
 
         return { success: true };
       } catch (error) {
         // Déjà blacklisté
+        console.warn("Unsubscribe duplicate warning", error);
         return { success: true };
       }
     }),

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import Stripe from "stripe";
 import * as db from "./db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
   apiVersion: "2025-12-15.clover",
 });
 
@@ -86,14 +86,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Récupérer l'invoice_id depuis les metadata
   const invoiceId = session.metadata?.invoice_id;
-  
+
   if (!invoiceId) {
     console.error("[Stripe Webhook] Missing invoice_id in session metadata");
     return;
   }
 
   const invoiceIdNum = parseInt(invoiceId, 10);
-  
+
   if (isNaN(invoiceIdNum)) {
     console.error(`[Stripe Webhook] Invalid invoice_id: ${invoiceId}`);
     return;
@@ -101,7 +101,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   // Vérifier que la facture existe
   const invoice = await db.getDocumentById(invoiceIdNum);
-  
+
   if (!invoice) {
     console.error(`[Stripe Webhook] Invoice not found: ${invoiceIdNum}`);
     return;
@@ -142,12 +142,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
             <h2 style="color: #E67E50;">💰 Paiement reçu</h2>
             <p><strong>Client:</strong> ${client.firstName} ${client.lastName}</p>
             <p><strong>Facture:</strong> ${invoice.number}</p>
-            <p><strong>Montant:</strong> ${parseFloat(invoice.totalTtc || "0").toFixed(2)} €</p>
+            <p><strong>Montant:</strong> ${parseFloat(String(invoice.totalTtc || "0")).toFixed(2)} €</p>
             <p><strong>Date:</strong> ${new Date().toLocaleDateString("fr-FR")}</p>
             <p>Le paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.</p>
           </div>
         `,
-        text: `💰 Paiement reçu\n\nClient: ${client.firstName} ${client.lastName}\nFacture: ${invoice.number}\nMontant: ${parseFloat(invoice.totalTtc || "0").toFixed(2)} €\nDate: ${new Date().toLocaleDateString("fr-FR")}\n\nLe paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.`,
+        text: `💰 Paiement reçu\n\nClient: ${client.firstName} ${client.lastName}\nFacture: ${invoice.number}\nMontant: ${parseFloat(String(invoice.totalTtc || "0")).toFixed(2)} €\nDate: ${new Date().toLocaleDateString("fr-FR")}\n\nLe paiement a été effectué via Stripe et la facture a été automatiquement marquée comme payée.`,
       });
     }
   } catch (error: any) {

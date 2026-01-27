@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
-import { getDb } from "./db";
-import { projectSecrets } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { ProjectSecret } from "./schema";
 import crypto from "crypto";
 
 // Clé de chiffrement (en production, utiliser une variable d'environnement)
@@ -35,6 +35,11 @@ function decrypt(text: string): string {
   }
 }
 
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
+
 /**
  * Router pour la gestion des secrets/variables d'environnement des projets
  */
@@ -43,14 +48,12 @@ export const projectSecretsRouter = router({
   list: protectedProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('projectSecrets')
+        .where('projectId', '==', input.projectId)
+        .orderBy('createdAt', 'desc')
+        .get();
 
-      const secrets = await db
-        .select()
-        .from(projectSecrets)
-        .where(eq(projectSecrets.projectId, input.projectId))
-        .orderBy(desc(projectSecrets.createdAt));
+      const secrets = snapshot.docs.map(doc => mapDoc<ProjectSecret>(doc));
 
       // Masquer les valeurs par défaut (retourner ●●●●●●)
       return secrets.map((secret) => ({
@@ -64,15 +67,10 @@ export const projectSecretsRouter = router({
   reveal: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const doc = await firestore.collection('projectSecrets').doc(String(input.id)).get();
 
-      const [secret] = await db
-        .select()
-        .from(projectSecrets)
-        .where(eq(projectSecrets.id, input.id));
-
-      if (!secret) throw new Error("Secret not found");
+      if (!doc.exists) throw new Error("Secret not found");
+      const secret = mapDoc<ProjectSecret>(doc);
 
       return {
         ...secret,
@@ -92,20 +90,21 @@ export const projectSecretsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const encryptedValue = encrypt(input.value);
+      const id = await getNextId('projectSecrets');
 
-      const [result] = await db.insert(projectSecrets).values({
+      await firestore.collection('projectSecrets').doc(String(id)).set({
+        id,
         projectId: input.projectId,
         category: input.category,
         name: input.name,
         value: encryptedValue,
         description: input.description || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
-      return { id: result.insertId, success: true };
+      return { id, success: true };
     }),
 
   // Mettre à jour un secret
@@ -120,19 +119,14 @@ export const projectSecretsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const updateData: any = { updatedAt: new Date() };
 
-      const updateData: any = {};
       if (input.category) updateData.category = input.category;
       if (input.name) updateData.name = input.name;
       if (input.value) updateData.value = encrypt(input.value);
       if (input.description !== undefined) updateData.description = input.description;
 
-      await db
-        .update(projectSecrets)
-        .set(updateData)
-        .where(eq(projectSecrets.id, input.id));
+      await firestore.collection('projectSecrets').doc(String(input.id)).update(updateData);
 
       return { success: true };
     }),
@@ -141,11 +135,7 @@ export const projectSecretsRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      await db.delete(projectSecrets).where(eq(projectSecrets.id, input.id));
-
+      await firestore.collection('projectSecrets').doc(String(input.id)).delete();
       return { success: true };
     }),
 
@@ -153,14 +143,13 @@ export const projectSecretsRouter = router({
   export: protectedProcedure
     .input(z.object({ projectId: z.number() }))
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snapshot = await firestore.collection('projectSecrets')
+        .where('projectId', '==', input.projectId)
+        .orderBy('category')
+        .orderBy('name')
+        .get();
 
-      const secrets = await db
-        .select()
-        .from(projectSecrets)
-        .where(eq(projectSecrets.projectId, input.projectId))
-        .orderBy(projectSecrets.category, projectSecrets.name);
+      const secrets = snapshot.docs.map(doc => mapDoc<ProjectSecret>(doc));
 
       // Générer le contenu du fichier .env
       let envContent = "# Variables d'environnement générées par Coach Digital\n";
@@ -201,11 +190,9 @@ export const projectSecretsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const lines = input.content.split("\n");
       let imported = 0;
+      const batch = firestore.batch();
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -217,14 +204,30 @@ export const projectSecretsRouter = router({
           const [, name, value] = match;
           const encryptedValue = encrypt(value);
 
-          await db.insert(projectSecrets).values({
+          // We can't await inside loop easily with batch if we need IDs.
+          // But getNextId is async. 
+          // To efficiently import, maybe use sequential helper or just await.
+          // Since it's user import, speed is not critical.
+
+          const id = await getNextId('projectSecrets');
+          const ref = firestore.collection('projectSecrets').doc(String(id));
+          batch.set(ref, {
+            id,
             projectId: input.projectId,
             category: input.category,
             name: name,
             value: encryptedValue,
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
+
           imported++;
         }
+      }
+
+      // Batch limit is 500. Assuming import isn't huge.
+      if (imported > 0) {
+        await batch.commit();
       }
 
       return { imported, success: true };

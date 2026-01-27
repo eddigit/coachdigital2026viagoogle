@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
-import { getDb } from "./db";
-import { timeEntries, clients, projects } from "../drizzle/schema";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { db as firestore } from "./firestore";
+import { TimeEntry, Client, Project } from "./schema";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 /**
  * Router pour la génération de factures de temps
@@ -21,56 +25,42 @@ export const timeInvoiceRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const { clientId, projectId, startDate, endDate, hourlyRate } = input;
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
 
-      // Récupérer les entrées de temps
-      const conditions = [
-        eq(timeEntries.userId, ctx.user.id),
-        sql`DATE(${timeEntries.date}) >= ${startDate}`,
-        sql`DATE(${timeEntries.date}) <= ${endDate}`,
-        eq(timeEntries.type, "billable"),
-      ];
+      // Fetch entries by range
+      const snapshot = await firestore.collection('timeEntries')
+        .where('userId', '==', ctx.user.id)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get();
 
-      if (clientId) {
-        conditions.push(eq(timeEntries.clientId, clientId));
-      }
+      let entries = snapshot.docs.map(doc => mapDoc<TimeEntry>(doc));
 
-      if (projectId) {
-        conditions.push(eq(timeEntries.projectId, projectId));
-      }
-
-      const entries = await db
-        .select()
-        .from(timeEntries)
-        .where(and(...conditions));
+      // Filter in memory
+      entries = entries.filter(e => e.type === "billable");
+      if (clientId) entries = entries.filter(e => e.clientId == clientId);
+      if (projectId) entries = entries.filter(e => e.projectId == projectId);
 
       if (entries.length === 0) {
         throw new Error("Aucune entrée facturable trouvée pour cette période");
       }
 
-      // Récupérer les informations client
-      let client = null;
+      // Informations client
+      let client: Client | null = null;
       if (clientId) {
-        const clientResult = await db
-          .select()
-          .from(clients)
-          .where(eq(clients.id, clientId))
-          .limit(1);
-        client = clientResult[0];
+        const clientDoc = await firestore.collection('clients').doc(String(clientId)).get();
+        if (clientDoc.exists) client = mapDoc<Client>(clientDoc);
       }
 
-      // Récupérer les informations projet
-      let project = null;
+      // Informations projet
+      let project: Project | null = null;
       if (projectId) {
-        const projectResult = await db
-          .select()
-          .from(projects)
-          .where(eq(projects.id, projectId))
-          .limit(1);
-        project = projectResult[0];
+        const projectDoc = await firestore.collection('projects').doc(String(projectId)).get();
+        if (projectDoc.exists) project = mapDoc<Project>(projectDoc);
       }
 
       // Calculer les totaux
@@ -78,12 +68,19 @@ export const timeInvoiceRouter = router({
       const totalHours = totalMinutes / 60;
 
       // Utiliser le taux horaire fourni ou celui de la première entrée
-      const rate = hourlyRate || parseFloat(entries[0].hourlyRate || "0");
+      const rate = hourlyRate || parseFloat(String(entries[0].hourlyRate || "0"));
       const totalAmount = totalHours * rate;
 
       // Grouper par date et période
+      // Helper for date string
+      const toDateStr = (d: any) => {
+        if (d && d.toDate) return d.toDate().toISOString().split('T')[0];
+        if (d instanceof Date) return d.toISOString().split('T')[0];
+        return String(d).split('T')[0];
+      };
+
       const groupedEntries = entries.reduce((acc, entry) => {
-        const dateKey = entry.date instanceof Date ? entry.date.toISOString().split('T')[0] : String(entry.date);
+        const dateKey = toDateStr(entry.date);
         if (!acc[dateKey]) {
           acc[dateKey] = {
             morning: [],
@@ -91,7 +88,9 @@ export const timeInvoiceRouter = router({
             evening: [],
           };
         }
-        acc[dateKey][entry.period].push(entry);
+        if (acc[dateKey][entry.period]) {
+          acc[dateKey][entry.period].push(entry);
+        }
         return acc;
       }, {} as Record<string, Record<string, any[]>>);
 
@@ -220,10 +219,10 @@ export const timeInvoiceRouter = router({
 
       // Détail des entrées
       const sortedDates = Object.keys(groupedEntries).sort();
-      
+
       for (const date of sortedDates) {
         const periods = groupedEntries[date];
-        
+
         for (const [periodKey, periodEntries] of Object.entries(periods)) {
           if (periodEntries.length === 0) continue;
 
@@ -231,8 +230,8 @@ export const timeInvoiceRouter = router({
             periodKey === "morning"
               ? "Matinée"
               : periodKey === "afternoon"
-              ? "Après-midi"
-              : "Soirée";
+                ? "Après-midi"
+                : "Soirée";
 
           for (const entry of periodEntries) {
             // Vérifier si on a besoin d'une nouvelle page
@@ -247,10 +246,10 @@ export const timeInvoiceRouter = router({
 
             page.drawText(date, { x: 50, y: yPosition, size: 9, font });
             page.drawText(periodLabel, { x: 150, y: yPosition, size: 9, font });
-            
+
             // Tronquer la description si trop longue
-            const description = entry.title.length > 30 
-              ? entry.title.substring(0, 27) + "..." 
+            const description = entry.title.length > 30
+              ? entry.title.substring(0, 27) + "..."
               : entry.title;
             page.drawText(description, { x: 250, y: yPosition, size: 9, font });
             page.drawText(durationText, { x: 450, y: yPosition, size: 9, font });
@@ -330,41 +329,32 @@ export const timeInvoiceRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const { clientId, projectId, startDate, endDate } = input;
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
 
-      // Récupérer les entrées de temps
-      const conditions = [
-        eq(timeEntries.userId, ctx.user.id),
-        sql`DATE(${timeEntries.date}) >= ${startDate}`,
-        sql`DATE(${timeEntries.date}) <= ${endDate}`,
-        eq(timeEntries.type, "billable"),
-      ];
+      const snapshot = await firestore.collection('timeEntries')
+        .where('userId', '==', ctx.user.id)
+        .where('date', '>=', start)
+        .where('date', '<=', end)
+        .get();
 
-      if (clientId) {
-        conditions.push(eq(timeEntries.clientId, clientId));
-      }
-
-      if (projectId) {
-        conditions.push(eq(timeEntries.projectId, projectId));
-      }
-
-      const entries = await db
-        .select()
-        .from(timeEntries)
-        .where(and(...conditions));
+      let entries = snapshot.docs.map(doc => mapDoc<TimeEntry>(doc));
+      entries = entries.filter(e => e.type === "billable");
+      if (clientId) entries = entries.filter(e => e.clientId == clientId);
+      if (projectId) entries = entries.filter(e => e.projectId == projectId);
 
       const totalMinutes = entries.reduce((sum, entry) => sum + (entry.duration || 0), 0);
       const totalHours = totalMinutes / 60;
 
       // Calculer le taux horaire moyen
-      const entriesWithRate = entries.filter((e) => e.hourlyRate && parseFloat(e.hourlyRate) > 0);
+      const entriesWithRate = entries.filter((e) => e.hourlyRate && parseFloat(String(e.hourlyRate)) > 0);
       const averageRate =
         entriesWithRate.length > 0
-          ? entriesWithRate.reduce((sum, e) => sum + parseFloat(e.hourlyRate || "0"), 0) /
-            entriesWithRate.length
+          ? entriesWithRate.reduce((sum, e) => sum + parseFloat(String(e.hourlyRate || "0")), 0) /
+          entriesWithRate.length
           : 0;
 
       return {

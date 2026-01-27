@@ -1,4 +1,4 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useFirebaseAuth } from "@/_core/hooks/useFirebaseAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -21,13 +21,13 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
+import { useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target, Plus } from "lucide-react";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationsBell from "@/components/NotificationsBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
@@ -116,7 +116,8 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  const { loading, user } = useFirebaseAuth();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -140,7 +141,7 @@ export default function DashboardLayout({
           </div>
           <Button
             onClick={() => {
-              window.location.href = getLoginUrl();
+              setLocation("/login");
             }}
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
@@ -176,7 +177,7 @@ function DashboardLayoutContent({
   children,
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useFirebaseAuth();
   const { data: company } = trpc.company.get.useQuery();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
@@ -277,9 +278,9 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   {company?.appLogo ? (
-                    <img 
-                      src={company.appLogo} 
-                      alt="Logo" 
+                    <img
+                      src={company.appLogo}
+                      alt="Logo"
                       className="h-8 w-auto object-contain"
                     />
                   ) : (
@@ -295,9 +296,9 @@ function DashboardLayoutContent({
                 </div>
               ) : (
                 company?.appLogo ? (
-                  <img 
-                    src={company.appLogo} 
-                    alt="Logo" 
+                  <img
+                    src={company.appLogo}
+                    alt="Logo"
                     className="h-8 w-auto object-contain"
                   />
                 ) : (
@@ -311,7 +312,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             {menuGroups.map((group, index) => {
-              if (group.adminOnly && user?.role !== 'admin') {
+              if (group.adminOnly) { // TODO: Implement admin role check with custom claims
                 return null;
               }
 
@@ -375,7 +376,7 @@ function DashboardLayoutContent({
               <GlobalSearch />
             </div>
           </div>
-          
+
           {/* Notifications et Profil */}
           <div className="flex items-center gap-2">
 
@@ -442,44 +443,44 @@ function DashboardLayoutContent({
             <NotificationsBell />
             {/* Widget Profil */}
             <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <Avatar className="h-8 w-8 border shrink-0">
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.name || ""} className="object-cover" />
-                  ) : (
-                    <AvatarFallback className="text-xs font-medium">
-                      {user?.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <div className="flex-1 min-w-0 text-left hidden md:block">
-                  <p className="text-sm font-medium truncate leading-none">
-                    {user?.name || "-"}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    {user?.email || "-"}
-                  </p>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={() => setLocation("/profile")}
-                className="cursor-pointer"
-              >
-                <User className="mr-2 h-4 w-4" />
-                <span>Mon Profil</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={logout}
-                className="cursor-pointer text-destructive focus:text-destructive"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sign out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-8 w-8 border shrink-0">
+                    {user?.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || ""} className="object-cover" />
+                    ) : (
+                      <AvatarFallback className="text-xs font-medium">
+                        {user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="flex-1 min-w-0 text-left hidden md:block">
+                    <p className="text-sm font-medium truncate leading-none">
+                      {user?.displayName || user?.email || "-"}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate mt-1">
+                      {user?.email || "-"}
+                    </p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => setLocation("/profile")}
+                  className="cursor-pointer"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Mon Profil</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <main className="flex-1 p-3 sm:p-4 md:p-6 overflow-x-hidden max-w-full">{children}</main>

@@ -4,10 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
-import { getDb } from "./db";
 import * as clientAuth from "./clientAuth";
-import { clientUsers, projectRequirements, documentLines } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
 import { notifyDocumentCreated, notifyQuoteConverted, getClientLoginUrl } from "./emailNotifications";
 import { stripeRouter } from "./stripeRouter";
 import { uploadRouter } from "./uploadRouter";
@@ -127,7 +124,7 @@ export const appRouter = router({
   projectSecrets: projectSecretsRouter,
   audiences: audiencesRouter,
   admin: adminRouter,
-  
+
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -150,7 +147,7 @@ export const appRouter = router({
   // ==========================================================================
   // STATS
   // ==========================================================================
-  
+
   stats: router({
     get: protectedProcedure.query(async () => {
       return await db.getStats();
@@ -160,12 +157,12 @@ export const appRouter = router({
   // ==========================================================================
   // COMPANY
   // ==========================================================================
-  
+
   company: router({
     get: protectedProcedure.query(async () => {
       return await db.getCompany();
     }),
-    
+
     upsert: protectedProcedure
       .input(companySchema)
       .mutation(async ({ input }) => {
@@ -177,37 +174,37 @@ export const appRouter = router({
   // ==========================================================================
   // CLIENTS
   // ==========================================================================
-  
+
   clients: router({
     list: protectedProcedure.query(async () => {
       return await db.getAllClients();
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getClientById(input.id);
       }),
-    
+
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getClientById(input.id);
       }),
-    
+
     search: protectedProcedure
       .input(z.object({ query: z.string() }))
       .query(async ({ input }) => {
         return await db.searchClients(input.query);
       }),
-    
+
     create: protectedProcedure
       .input(clientSchema)
       .mutation(async ({ input }) => {
         const id = await db.createClient(input);
         return { id };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -217,7 +214,7 @@ export const appRouter = router({
         await db.updateClient(input.id, input.data);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
@@ -225,7 +222,7 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
-  
+
   // ==========================================================================
   // DOCUMENTS
   // ==========================================================================
@@ -233,37 +230,37 @@ export const appRouter = router({
   // ==========================================================================
   // PROJECTS
   // ==========================================================================
-  
+
   projects: router({
     list: protectedProcedure.query(async () => {
       return await db.getAllProjects();
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectById(input.id);
       }),
-    
+
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectById(input.id);
       }),
-    
+
     byClient: protectedProcedure
       .input(z.object({ clientId: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectsByClientId(input.clientId);
       }),
-    
+
     create: protectedProcedure
       .input(projectSchema)
       .mutation(async ({ input }) => {
         const id = await db.createProject(input);
         return { id };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -273,7 +270,7 @@ export const appRouter = router({
         await db.updateProject(input.id, input.data);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
@@ -285,37 +282,37 @@ export const appRouter = router({
   // ==========================================================================
   // TASKS
   // ==========================================================================
-  
+
   tasks: router({
     list: protectedProcedure.query(async () => {
       return await db.getAllTasks();
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getTaskById(input.id);
       }),
-    
+
     byProject: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input }) => {
         return await db.getTasksByProjectId(input.projectId);
       }),
-    
+
     byClient: protectedProcedure
       .input(z.object({ clientId: z.number() }))
       .query(async ({ input }) => {
         return await db.getTasksByClientId(input.clientId);
       }),
-    
+
     create: protectedProcedure
       .input(taskSchema)
       .mutation(async ({ input }) => {
         const id = await db.createTask(input);
         return { id };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -325,7 +322,7 @@ export const appRouter = router({
         await db.updateTask(input.id, input.data);
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
@@ -337,7 +334,7 @@ export const appRouter = router({
   // ==========================================================================
   // DOCUMENTS
   // ==========================================================================
-  
+
   documents: router({
     list: protectedProcedure.query(async () => {
       const docs = await db.getAllDocuments();
@@ -350,42 +347,36 @@ export const appRouter = router({
       );
       return docsWithLines;
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         const document = await db.getDocumentById(input.id);
         if (!document) return null;
-        
+
         const lines = await db.getDocumentLinesByDocumentId(input.id);
         return { ...document, lines };
       }),
-    
+
     byClient: protectedProcedure
       .input(z.object({ clientId: z.number() }))
       .query(async ({ input }) => {
         return await db.getDocumentsByClientId(input.clientId);
       }),
-    
+
     listByClientUser: publicProcedure
       .input(z.object({ clientUserId: z.number() }))
       .query(async ({ input }) => {
-        const database = await getDb();
-        if (!database) return [];
-        
         // Trouver le client associé au clientUser
-        const result = await database
-          .select()
-          .from(clientUsers)
-          .where(eq(clientUsers.id, input.clientUserId))
-          .limit(1);
-        
-        if (result.length === 0) return [];
-        
+        const clientUser = await db.getClientUserById(input.clientUserId);
+
+        if (!clientUser) return [];
+
         // Récupérer tous les documents du client
-        return await db.getDocumentsByClientId(result[0].clientId);
+        // Ensure clientId is treated as number if it's stored as number in DB
+        return await db.getDocumentsByClientId(Number(clientUser.clientId));
       }),
-    
+
     create: protectedProcedure
       .input(z.object({
         clientId: z.number(),
@@ -412,13 +403,13 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const documentId = await db.createDocument(input);
-        
+
         // Les notifications automatiques sont désactivées
         // L'envoi d'emails se fait manuellement via le bouton "Envoyer par email"
-        
+
         return documentId;
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -442,50 +433,24 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { lines, ...documentData } = input;
-        
+
         // Mettre à jour le document
         await db.updateDocument(input.id, documentData);
-        
+
         // Si des lignes sont fournies, les mettre à jour
         if (lines) {
-          // Supprimer les anciennes lignes
-          const database = await getDb();
-          if (database) {
-            await database.delete(documentLines).where(eq(documentLines.documentId, input.id));
-            
-            // Insérer les nouvelles lignes
-            for (const line of lines) {
-              const qty = parseFloat(line.quantity) || 0;
-              const price = parseFloat(line.unitPriceHt) || 0;
-              const tva = parseFloat(line.tvaRate) || 0;
-              const lineHt = qty * price;
-              const lineTva = lineHt * (tva / 100);
-              const lineTtc = lineHt + lineTva;
-              
-              await database.insert(documentLines).values({
-                documentId: input.id,
-                description: line.description,
-                quantity: line.quantity,
-                unit: line.unit,
-                unitPriceHt: line.unitPriceHt,
-                tvaRate: line.tvaRate,
-                totalHt: lineHt.toFixed(2),
-                totalTva: lineTva.toFixed(2),
-                totalTtc: lineTtc.toFixed(2),
-              });
-            }
-          }
+          await db.replaceDocumentLines(input.id, lines);
         }
-        
+
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
         return await db.deleteDocument(input.id);
       }),
-    
+
     convertToInvoice: protectedProcedure
       .input(z.object({ quoteId: z.number() }))
       .mutation(async ({ input }) => {
@@ -494,13 +459,13 @@ export const appRouter = router({
         if (!quote) {
           throw new Error("Devis introuvable");
         }
-        
+
         if (quote.type !== "quote") {
           throw new Error("Ce document n'est pas un devis");
         }
-        
+
         const lines = await db.getDocumentLinesByDocumentId(input.quoteId);
-        
+
         // Créer la facture avec les mêmes données
         const invoiceId = await db.createDocument({
           clientId: quote.clientId,
@@ -525,21 +490,21 @@ export const appRouter = router({
             tvaRate: line.tvaRate,
           })),
         });
-        
+
         // Les notifications automatiques sont désactivées
         // L'envoi d'emails se fait manuellement via le bouton "Envoyer par email"
-        
+
         return { success: true, invoiceId };
       }),
-    
+
     getNextNumber: protectedProcedure
       .input(z.object({ type: z.enum(["quote", "invoice", "credit_note"]) }))
       .query(async ({ input }) => {
         return await db.getNextDocumentNumber(input.type);
       }),
-    
+
     sendByEmail: protectedProcedure
-      .input(z.object({ 
+      .input(z.object({
         documentId: z.number(),
         pdfBase64: z.string(),
         customMessage: z.string().optional(),
@@ -550,29 +515,29 @@ export const appRouter = router({
         if (!document) {
           throw new Error("Document introuvable");
         }
-        
+
         // Récupérer le client
         const client = await db.getClientById(document.clientId);
         if (!client || !client.email) {
           throw new Error("Client introuvable ou sans email");
         }
-        
+
         const docType = document.type === "quote" ? "Devis" : "Facture";
         const subject = `${docType} ${document.number} - Coach Digital`;
-        
+
         const defaultMessage = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2 style="color: #E67E50;">Votre ${docType.toLowerCase()}</h2>
             <p>Bonjour ${client.firstName},</p>
             <p>Veuillez trouver ci-joint votre ${docType.toLowerCase()} n° ${document.number}.</p>
-            <p><strong>Montant total TTC :</strong> ${parseFloat(document.totalTtc || "0").toFixed(2)} €</p>
+            <p><strong>Montant total TTC :</strong> ${parseFloat(String(document.totalTtc || "0")).toFixed(2)} €</p>
             ${document.dueDate ? `<p><strong>Échéance :</strong> ${new Date(document.dueDate).toLocaleDateString("fr-FR")}</p>` : ""}
             <p>Pour accéder à votre espace client et consulter vos documents, cliquez sur le lien ci-dessous :</p>
             <p><a href="https://coachdigital.biz/client" style="color: #E67E50;">Accéder à mon espace client</a></p>
             <p>Cordialement,<br/>Coach Digital Paris</p>
           </div>
         `;
-        
+
         const { sendEmail } = await import("./emailService");
         const sent = await sendEmail({
           to: client.email,
@@ -584,16 +549,16 @@ export const appRouter = router({
             contentType: "application/pdf",
           }],
         });
-        
+
         if (!sent) {
           throw new Error("Erreur lors de l'envoi de l'email");
         }
-        
+
         // Mettre à jour le statut du document à "sent" s'il était en brouillon
         if (document.status === "draft") {
           await db.updateDocument(input.documentId, { status: "sent" });
         }
-        
+
         return { success: true, sentTo: client.email };
       }),
   }),
@@ -601,7 +566,7 @@ export const appRouter = router({
   // ==========================================================================
   // CLIENT REQUESTS (Demandes clients)
   // ==========================================================================
-  
+
   clientRequests: router({
     create: publicProcedure
       .input(z.object({
@@ -624,7 +589,7 @@ export const appRouter = router({
           deadline: input.deadline,
           priority: input.priority,
         });
-        
+
         // Envoyer notification email au coach
         try {
           const { sendEmail } = await import("./emailService");
@@ -649,14 +614,14 @@ export const appRouter = router({
         } catch (error) {
           console.error("Erreur notification email:", error);
         }
-        
+
         return { success: true, id };
       }),
-    
+
     list: protectedProcedure.query(async () => {
       return await db.getAllClientRequests();
     }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
@@ -667,7 +632,7 @@ export const appRouter = router({
   // ==========================================================================
   // CLIENT AUTH (Authentification espace client séparé)
   // ==========================================================================
-  
+
   clientAuth: router({
     login: publicProcedure
       .input(z.object({
@@ -683,7 +648,7 @@ export const appRouter = router({
         }
         return { success: false, error: result.error };
       }),
-    
+
     createClientUser: protectedProcedure
       .input(z.object({
         clientId: z.number(),
@@ -693,7 +658,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         return await clientAuth.createClientUser(input);
       }),
-    
+
     generateInvitation: protectedProcedure
       .input(z.object({
         clientId: z.number(),
@@ -702,7 +667,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const token = await clientAuth.generateInvitationToken(input.clientId, input.email);
         const invitationUrl = `${process.env.VITE_APP_URL || 'https://coachdigital.biz'}/client/invitation/${token}`;
-        
+
         // Envoyer l'email d'invitation
         const { sendEmail } = await import("./emailService");
         await sendEmail({
@@ -724,10 +689,10 @@ export const appRouter = router({
           `,
           text: `Bienvenue sur votre espace client\n\nVous avez été invité à accéder à votre espace client sécurisé.\n\nCliquez sur le lien ci-dessous pour créer votre compte :\n${invitationUrl}\n\nCoach Digital - Accompagnement numérique et intégration IA`,
         });
-        
+
         return { success: true, token, invitationUrl };
       }),
-    
+
     acceptInvitation: publicProcedure
       .input(z.object({
         token: z.string(),
@@ -741,30 +706,30 @@ export const appRouter = router({
   // ==========================================================================
   // PROJECT CREDENTIALS (Coffre-fort RGPD)
   // ==========================================================================
-  
+
   vault: router({
     list: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectCredentials(input.projectId);
       }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         const credential = await db.getProjectCredentialById(input.id);
         if (!credential) throw new Error("Credential not found");
-        
+
         // Logger l'accès
         await db.logCredentialAccess({
           credentialId: input.id,
           accessedBy: ctx.user!.id,
           accessType: "view",
         });
-        
+
         return credential;
       }),
-    
+
     create: protectedProcedure
       .input(z.object({
         projectId: z.number(),
@@ -779,7 +744,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { encryptCredentials } = await import("./encryption");
         const encryptedData = encryptCredentials(input.credentialData);
-        
+
         const id = await db.createProjectCredential({
           projectId: input.projectId,
           category: input.category,
@@ -790,10 +755,10 @@ export const appRouter = router({
           expiresAt: input.expiresAt,
           notes: input.notes,
         });
-        
+
         return { success: true, id };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -807,28 +772,28 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { id, credentialData, ...rest } = input;
-        
+
         let encryptedData: string | undefined;
         if (credentialData) {
           const { encryptCredentials } = await import("./encryption");
           encryptedData = encryptCredentials(credentialData);
         }
-        
+
         await db.updateProjectCredential(id, {
           ...rest,
           encryptedData,
         });
-        
+
         // Logger l'accès
         await db.logCredentialAccess({
           credentialId: id,
           accessedBy: ctx.user!.id,
           accessType: "edit",
         });
-        
+
         return { success: true };
       }),
-    
+
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -838,30 +803,30 @@ export const appRouter = router({
           accessedBy: ctx.user!.id,
           accessType: "delete",
         });
-        
+
         await db.deleteProjectCredential(input.id);
         return { success: true };
       }),
-    
+
     decrypt: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         const credential = await db.getProjectCredentialById(input.id);
         if (!credential) throw new Error("Credential not found");
-        
+
         const { decryptCredentials } = await import("./encryption");
         const decryptedData = decryptCredentials(credential.encryptedData);
-        
+
         // Logger l'accès
         await db.logCredentialAccess({
           credentialId: input.id,
           accessedBy: ctx.user!.id,
           accessType: "view",
         });
-        
+
         return { ...credential, decryptedData };
       }),
-    
+
     logs: protectedProcedure
       .input(z.object({ credentialId: z.number() }))
       .query(async ({ input }) => {
@@ -872,28 +837,25 @@ export const appRouter = router({
   // ==========================================================================
   // PROJECT REQUIREMENTS (Cahier des charges)
   // ==========================================================================
-  
+
   requirements: router({
     listAll: protectedProcedure
       .query(async () => {
-        // Récupérer tous les requirements
-        const db_inst = await db.getDb();
-        if (!db_inst) throw new Error("Database not available");
-        return await db_inst.select().from(projectRequirements);
+        return await db.getAllProjectRequirements();
       }),
-    
+
     list: protectedProcedure
       .input(z.object({ projectId: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectRequirements(input.projectId);
       }),
-    
+
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
         return await db.getProjectRequirementById(input.id);
       }),
-    
+
     create: protectedProcedure
       .input(z.object({
         projectId: z.number(),
@@ -913,7 +875,7 @@ export const appRouter = router({
         });
         return { success: true, id };
       }),
-    
+
     update: protectedProcedure
       .input(z.object({
         id: z.number(),
@@ -932,7 +894,7 @@ export const appRouter = router({
         await db.updateProjectRequirement(id, data);
         return { success: true };
       }),
-    
+
     approve: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -940,30 +902,30 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
-  
+
   // ==========================================================================
   // PROJECT VARIABLES & NOTES
   // ==========================================================================
-  
+
   projectVariables: projectVariablesRouter,
   projectNotes: projectNotesRouter,
-  
+
   // ==========================================================================
   // NOTIFICATIONS
   // ==========================================================================
-  
+
   notifications: notificationsRouter,
-  
+
   // ==========================================================================
   // DOCUMENT TEMPLATES
   // ==========================================================================
-  
+
   documentTemplates: documentTemplatesRouter,
-  
+
   // ==========================================================================
   // SMTP CONFIGURATION
   // ==========================================================================
-  
+
   smtp: smtpRouter,
 });
 

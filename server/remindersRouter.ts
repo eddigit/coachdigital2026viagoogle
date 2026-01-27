@@ -1,64 +1,56 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
-import { leads, tasks, documents, calendarEvents } from "../drizzle/schema";
-import { eq, lt, and, or, isNotNull, not, inArray } from "drizzle-orm";
+import { db as firestore } from "./firestore";
+import { Lead, Task, Document, CalendarEvent } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const remindersRouter = router({
   getAll: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return { overdueLeads: [], overdueTasks: [], unpaidInvoices: [], upcomingEvents: [] };
-
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const overdueLeads = await db
-      .select()
-      .from(leads)
-      .where(
-        and(
-          isNotNull(leads.nextFollowUpDate),
-          lt(leads.nextFollowUpDate, now),
-          not(inArray(leads.status, ["conclusion", "ordre"]))
-        )
-      );
+    // Overdue Leads
+    const leadsSnapshot = await firestore.collection('leads')
+      // .where('nextFollowUpDate', '<', now) // Requires index on nextFollowUpDate
+      // .where('nextFollowUpDate', '!=', null) 
+      .get();
 
-    const overdueTasks = await db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          isNotNull(tasks.dueDate),
-          lt(tasks.dueDate, now),
-          not(inArray(tasks.status, ["done", "cancelled"]))
-        )
-      );
+    // Memory filter for simplicity if index missing
+    const overdueLeads = leadsSnapshot.docs.map(d => mapDoc<Lead>(d))
+      .filter(l => l.nextFollowUpDate && new Date(l.nextFollowUpDate) < now)
+      .filter(l => !["conclusion", "ordre"].includes(l.status));
 
-    const unpaidInvoices = await db
-      .select()
-      .from(documents)
-      .where(
-        and(
-          eq(documents.type, "invoice"),
-          eq(documents.status, "sent"),
-          isNotNull(documents.dueDate),
-          lt(documents.dueDate, now)
-        )
-      );
+    // Overdue Tasks
+    const tasksSnapshot = await firestore.collection('tasks')
+      .get();
+    const overdueTasks = tasksSnapshot.docs.map(d => mapDoc<Task>(d))
+      .filter(t => t.dueDate && new Date(t.dueDate) < now)
+      .filter(t => !["done", "cancelled"].includes(t.status));
 
-    const upcomingEvents = await db
-      .select()
-      .from(calendarEvents)
-      .where(
-        and(
-          lt(calendarEvents.startDate, tomorrow),
-          not(lt(calendarEvents.startDate, now))
-        )
-      );
+    // Unpaid Invoices
+    const docsSnapshot = await firestore.collection('documents')
+      .where('type', '==', 'invoice')
+      .where('status', '==', 'sent')
+      .get();
+
+    const unpaidInvoices = docsSnapshot.docs.map(d => mapDoc<Document>(d))
+      .filter(d => d.dueDate && new Date(d.dueDate) < now);
+
+    // Upcoming Events (Today)
+    const eventsSnapshot = await firestore.collection('calendarEvents')
+      .where('startDate', '>=', now) // Future including now
+      .where('startDate', '<', tomorrow)
+      .get();
+
+    const upcomingEvents = eventsSnapshot.docs.map(d => mapDoc<CalendarEvent>(d));
 
     return {
       overdueLeads: overdueLeads.map(l => ({
-        id: l.id,
+        id: Number(l.id),
         type: "lead" as const,
         title: `${l.firstName} ${l.lastName}`,
         subtitle: l.company || l.email || "",
@@ -66,7 +58,7 @@ export const remindersRouter = router({
         status: l.status,
       })),
       overdueTasks: overdueTasks.map(t => ({
-        id: t.id,
+        id: Number(t.id),
         type: "task" as const,
         title: t.title,
         subtitle: t.description || "",
@@ -75,7 +67,7 @@ export const remindersRouter = router({
         priority: t.priority,
       })),
       unpaidInvoices: unpaidInvoices.map(d => ({
-        id: d.id,
+        id: Number(d.id),
         type: "invoice" as const,
         title: `Facture ${d.number}`,
         subtitle: `${d.totalTtc} €`,
@@ -83,7 +75,7 @@ export const remindersRouter = router({
         status: d.status,
       })),
       upcomingEvents: upcomingEvents.map(e => ({
-        id: e.id,
+        id: Number(e.id),
         type: "event" as const,
         title: e.title,
         subtitle: e.description || "",
@@ -94,63 +86,49 @@ export const remindersRouter = router({
   }),
 
   getCounts: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return { overdueLeads: 0, overdueTasks: 0, unpaidInvoices: 0, todayEvents: 0, total: 0 };
-
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const overdueLeads = await db
-      .select()
-      .from(leads)
-      .where(
-        and(
-          isNotNull(leads.nextFollowUpDate),
-          lt(leads.nextFollowUpDate, now),
-          not(inArray(leads.status, ["conclusion", "ordre"]))
-        )
-      );
+    // Same logic but just counts
+    // We can't easily count with complex filters without reading docs unless we use dedicated counters or queries.
+    // Reading docs is acceptable for moderate dataset.
 
-    const overdueTasks = await db
-      .select()
-      .from(tasks)
-      .where(
-        and(
-          isNotNull(tasks.dueDate),
-          lt(tasks.dueDate, now),
-          not(inArray(tasks.status, ["done", "cancelled"]))
-        )
-      );
+    // Leads
+    const leadsSnap = await firestore.collection('leads').get();
+    const overdueLeadsCount = leadsSnap.docs.map(d => d.data())
+      .filter(l => l.nextFollowUpDate && (l.nextFollowUpDate.toDate ? l.nextFollowUpDate.toDate() : new Date(l.nextFollowUpDate)) < now)
+      .filter(l => !["conclusion", "ordre"].includes(l.status))
+      .length;
 
-    const unpaidInvoices = await db
-      .select()
-      .from(documents)
-      .where(
-        and(
-          eq(documents.type, "invoice"),
-          eq(documents.status, "sent"),
-          isNotNull(documents.dueDate),
-          lt(documents.dueDate, now)
-        )
-      );
+    // Tasks
+    const tasksSnap = await firestore.collection('tasks').get();
+    const overdueTasksCount = tasksSnap.docs.map(d => d.data())
+      .filter(t => t.dueDate && (t.dueDate.toDate ? t.dueDate.toDate() : new Date(t.dueDate)) < now)
+      .filter(t => !["done", "cancelled"].includes(t.status))
+      .length;
 
-    const todayEvents = await db
-      .select()
-      .from(calendarEvents)
-      .where(
-        and(
-          lt(calendarEvents.startDate, todayEnd),
-          not(lt(calendarEvents.startDate, todayStart))
-        )
-      );
+    // Invoices
+    const invSnap = await firestore.collection('documents')
+      .where('type', '==', 'invoice')
+      .where('status', '==', 'sent')
+      .get();
+    const unpaidInvoicesCount = invSnap.docs.map(d => d.data())
+      .filter(d => d.dueDate && (d.dueDate.toDate ? d.dueDate.toDate() : new Date(d.dueDate)) < now)
+      .length;
+
+    // Events
+    const eventsSnap = await firestore.collection('calendarEvents')
+      .where('startDate', '>=', todayStart)
+      .where('startDate', '<', todayEnd)
+      .get();
 
     return {
-      overdueLeads: overdueLeads.length,
-      overdueTasks: overdueTasks.length,
-      unpaidInvoices: unpaidInvoices.length,
-      todayEvents: todayEvents.length,
-      total: overdueLeads.length + overdueTasks.length + unpaidInvoices.length,
+      overdueLeads: overdueLeadsCount,
+      overdueTasks: overdueTasksCount,
+      unpaidInvoices: unpaidInvoicesCount,
+      todayEvents: eventsSnap.size,
+      total: overdueLeadsCount + overdueTasksCount + unpaidInvoicesCount,
     };
   }),
 });

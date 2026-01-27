@@ -1,35 +1,31 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "./_core/trpc";
-import { getDb } from "./db";
-import { audiences, leads } from "../drizzle/schema";
-import { eq, sql, inArray } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { Audience, Lead } from "./schema";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const audiencesRouter = router({
   // Liste toutes les audiences
   list: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-    
-    const result = await db
-      .select()
-      .from(audiences)
-      .where(eq(audiences.isActive, true))
-      .orderBy(audiences.name);
-    return result;
+    const snapshot = await firestore.collection('audiences')
+      .where('isActive', '==', true)
+      .orderBy('name')
+      .get();
+    return snapshot.docs.map(doc => mapDoc<Audience>(doc));
   }),
 
   // Récupère une audience par ID
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      const [audience] = await db
-        .select()
-        .from(audiences)
-        .where(eq(audiences.id, input.id));
-      return audience;
+      const doc = await firestore.collection('audiences').doc(String(input.id)).get();
+      if (!doc.exists) return null;
+      return mapDoc<Audience>(doc);
     }),
 
   // Crée une nouvelle audience
@@ -41,17 +37,15 @@ export const audiencesRouter = router({
       icon: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      const result = await db.insert(audiences).values({
-        name: input.name,
-        description: input.description || null,
-        color: input.color,
-        icon: input.icon || null,
+      const id = await getNextId('audiences');
+      await firestore.collection('audiences').doc(String(id)).set({
+        ...input,
+        id,
+        isActive: true, // Default
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
-      const insertId = typeof result === 'object' && 'insertId' in result ? result.insertId : result[0];
-      return { id: insertId, ...input };
+      return { id, ...input };
     }),
 
   // Met à jour une audience
@@ -65,11 +59,11 @@ export const audiencesRouter = router({
       isActive: z.boolean().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
       const { id, ...data } = input;
-      await db.update(audiences).set(data).where(eq(audiences.id, id));
+      await firestore.collection('audiences').doc(String(id)).update({
+        ...data,
+        updatedAt: new Date()
+      });
       return { success: true };
     }),
 
@@ -77,67 +71,60 @@ export const audiencesRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      // Réassigner les leads de cette audience à "Général"
-      const generalAudienceResult = await db
-        .select()
-        .from(audiences)
-        .where(eq(audiences.name, "Général"));
-      
-      if (generalAudienceResult.length > 0) {
-        // Récupérer le nom de l'audience à supprimer
-        const audienceToDeleteResult = await db
-          .select()
-          .from(audiences)
-          .where(eq(audiences.id, input.id));
-        
-        if (audienceToDeleteResult.length > 0) {
-          await db
-            .update(leads)
-            .set({ audience: "Général" })
-            .where(eq(leads.audience, audienceToDeleteResult[0].name));
+      // Logic to move leads to "Général"
+      const doc = await firestore.collection('audiences').doc(String(input.id)).get();
+      if (doc.exists) {
+        const audience = mapDoc<Audience>(doc);
+
+        // Find 'Général' audience only if it exists? Drizzle query assumed it.
+        // We'll update matching leads.
+        const leadsSnapshot = await firestore.collection('leads')
+          .where('audience', '==', audience.name)
+          .get();
+
+        if (!leadsSnapshot.empty) {
+          const batch = firestore.batch();
+          leadsSnapshot.docs.forEach(d => {
+            batch.update(d.ref, { audience: "Général" });
+          });
+          await batch.commit();
         }
       }
-      
-      // Soft delete
-      await db.update(audiences).set({ isActive: false }).where(eq(audiences.id, input.id));
+
+      await firestore.collection('audiences').doc(String(input.id)).update({ isActive: false });
       return { success: true };
     }),
 
   // Statistiques par audience
   getStats: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) throw new Error("Database not available");
-    
-    const audiencesList = await db
-      .select()
-      .from(audiences)
-      .where(eq(audiences.isActive, true));
-    
+    const audiencesSnapshot = await firestore.collection('audiences')
+      .where('isActive', '==', true)
+      .get();
+    const audiencesList = audiencesSnapshot.docs.map(doc => mapDoc<Audience>(doc));
+
     const stats = await Promise.all(
       audiencesList.map(async (audience) => {
-        const leadStatsResult = await db
-          .select({
-            count: sql<number>`COUNT(*)`,
-            totalPotential: sql<number>`COALESCE(SUM(${leads.potentialAmount}), 0)`,
-            converted: sql<number>`SUM(CASE WHEN ${leads.convertedToClientId} IS NOT NULL THEN 1 ELSE 0 END)`,
-          })
-          .from(leads)
-          .where(eq(leads.audience, audience.name));
-        
-        const leadStats = leadStatsResult[0];
-        
+        // Count queries for efficiency?
+        // But need potentialAmount sum.
+        const leadsSnapshot = await firestore.collection('leads')
+          .where('audience', '==', audience.name)
+          .get();
+
+        const leads = leadsSnapshot.docs.map(d => mapDoc<Lead>(d));
+
+        const count = leads.length;
+        const totalPotential = leads.reduce((sum, l) => sum + Number(l.potentialAmount || 0), 0);
+        const converted = leads.filter(l => l.convertedToClientId).length;
+
         return {
           ...audience,
-          leadsCount: leadStats?.count || 0,
-          totalPotential: leadStats?.totalPotential || 0,
-          convertedCount: leadStats?.converted || 0,
+          leadsCount: count,
+          totalPotential,
+          convertedCount: converted,
         };
       })
     );
-    
+
     return stats;
   }),
 
@@ -148,13 +135,14 @@ export const audiencesRouter = router({
       leadIds: z.array(z.number()),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      await db
-        .update(leads)
-        .set({ audience: input.audienceName })
-        .where(inArray(leads.id, input.leadIds));
+      const batch = firestore.batch();
+
+      input.leadIds.forEach(id => {
+        const ref = firestore.collection('leads').doc(String(id));
+        batch.update(ref, { audience: input.audienceName });
+      });
+
+      await batch.commit();
       return { success: true, count: input.leadIds.length };
     }),
 
@@ -165,13 +153,14 @@ export const audiencesRouter = router({
       leadIds: z.array(z.number()),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-      
-      await db
-        .update(leads)
-        .set({ status: input.status })
-        .where(inArray(leads.id, input.leadIds));
+      const batch = firestore.batch();
+
+      input.leadIds.forEach(id => {
+        const ref = firestore.collection('leads').doc(String(id));
+        batch.update(ref, { status: input.status });
+      });
+
+      await batch.commit();
       return { success: true, count: input.leadIds.length };
     }),
 });

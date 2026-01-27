@@ -3,7 +3,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import Stripe from "stripe";
 import * as db from "./db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
   apiVersion: "2025-12-15.clover",
 });
 
@@ -42,7 +42,7 @@ export const stripeRouter = router({
 
       // Créer la session Checkout Stripe
       const origin = process.env.VITE_APP_URL || "https://coachdigital.biz";
-      
+
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         customer_email: client.email || undefined,
@@ -63,7 +63,7 @@ export const stripeRouter = router({
                   invoice_number: invoice.number,
                 },
               },
-              unit_amount: Math.round(parseFloat(invoice.totalTtc) * 100), // Convertir en centimes
+              unit_amount: Math.round(parseFloat(String(invoice.totalTtc)) * 100), // Convertir en centimes
             },
             quantity: 1,
           },
@@ -93,7 +93,7 @@ export const stripeRouter = router({
     }))
     .query(async ({ input }) => {
       const session = await stripe.checkout.sessions.retrieve(input.sessionId);
-      
+
       return {
         status: session.payment_status,
         paymentIntentId: session.payment_intent as string,

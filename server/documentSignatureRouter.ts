@@ -1,27 +1,34 @@
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { getDb } from "./db";
-import { documentTracking, documentViews, documentSignatures, documents, clients } from "../drizzle/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { getNextId } from "./db";
+import { db as firestore } from "./firestore";
+import { DocumentTracking, DocumentView, DocumentSignature, ClientDocument, Client } from "./schema";
 import { randomBytes } from "crypto";
 import { sendEmail } from "./emailService";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const documentTrackingRouter = router({
   createTracking: protectedProcedure
     .input(z.object({ documentId: z.number() }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const trackingToken = randomBytes(32).toString("hex");
+      const id = await getNextId('documentTracking');
 
-      const result = await db.insert(documentTracking).values({
+      await firestore.collection('documentTracking').doc(String(id)).set({
+        id,
         documentId: input.documentId,
         trackingToken,
+        viewCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
-      return { 
-        trackingId: Number(result[0].insertId), 
+      return {
+        trackingId: id,
         trackingToken,
         viewUrl: `${process.env.VITE_APP_URL || "https://coachdigital.biz"}/view/${trackingToken}`,
       };
@@ -30,187 +37,167 @@ export const documentTrackingRouter = router({
   getByDocument: protectedProcedure
     .input(z.object({ documentId: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return null;
+      const snapshot = await firestore.collection('documentTracking')
+        .where('documentId', '==', input.documentId)
+        .limit(1)
+        .get();
 
-      const tracking = await db
-        .select()
-        .from(documentTracking)
-        .where(eq(documentTracking.documentId, input.documentId))
-        .limit(1);
-
-      return tracking[0] || null;
+      if (snapshot.empty) return null;
+      return mapDoc<DocumentTracking>(snapshot.docs[0]);
     }),
 
   getViews: protectedProcedure
     .input(z.object({ documentId: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return [];
-
-      return await db
-        .select()
-        .from(documentViews)
-        .where(eq(documentViews.documentId, input.documentId))
-        .orderBy(desc(documentViews.viewedAt));
+      const snapshot = await firestore.collection('documentViews')
+        .where('documentId', '==', input.documentId)
+        .orderBy('viewedAt', 'desc')
+        .get();
+      return snapshot.docs.map(doc => mapDoc<DocumentView>(doc));
     }),
 
   recordView: publicProcedure
-    .input(z.object({ 
+    .input(z.object({
       token: z.string(),
       userAgent: z.string().optional(),
       ipAddress: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const trackSnap = await firestore.collection('documentTracking')
+        .where('trackingToken', '==', input.token)
+        .limit(1)
+        .get();
 
-      const tracking = await db
-        .select()
-        .from(documentTracking)
-        .where(eq(documentTracking.trackingToken, input.token))
-        .limit(1);
-
-      if (!tracking[0]) {
+      if (trackSnap.empty) {
         throw new Error("Token invalide");
       }
 
+      const trackingDoc = trackSnap.docs[0];
+      const tracking = mapDoc<DocumentTracking>(trackingDoc);
       const now = new Date();
-      const isFirstView = !tracking[0].firstViewedAt;
+      const isFirstView = !tracking.firstViewedAt;
 
-      await db.update(documentTracking)
-        .set({
-          viewCount: tracking[0].viewCount + 1,
-          firstViewedAt: tracking[0].firstViewedAt || now,
-          lastViewedAt: now,
-          viewerIp: input.ipAddress,
-          viewerUserAgent: input.userAgent,
-        })
-        .where(eq(documentTracking.id, tracking[0].id));
-
-      await db.insert(documentViews).values({
-        documentId: tracking[0].documentId,
-        trackingId: tracking[0].id,
-        ipAddress: input.ipAddress,
-        userAgent: input.userAgent,
+      await trackingDoc.ref.update({
+        viewCount: (tracking.viewCount || 0) + 1,
+        firstViewedAt: tracking.firstViewedAt || now,
+        lastViewedAt: now,
+        viewerIp: input.ipAddress || null,
+        viewerUserAgent: input.userAgent || null,
+        updatedAt: now
       });
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, tracking[0].documentId))
-        .limit(1);
+      const viewId = await getNextId('documentViews');
+      await firestore.collection('documentViews').doc(String(viewId)).set({
+        id: viewId,
+        documentId: tracking.documentId,
+        trackingId: tracking.id,
+        ipAddress: input.ipAddress || null,
+        userAgent: input.userAgent || null,
+        viewedAt: now
+      });
 
-      if (isFirstView && doc[0]) {
-        const client = await db
-          .select()
-          .from(clients)
-          .where(eq(clients.id, doc[0].clientId))
-          .limit(1);
+      if (isFirstView) {
+        const docSnap = await firestore.collection('documents').doc(String(tracking.documentId)).get();
+        if (docSnap.exists) {
+          const doc = mapDoc<ClientDocument>(docSnap);
 
-        const docType = doc[0].type === "quote" ? "Devis" : "Facture";
-        const clientName = client[0] ? `${client[0].firstName} ${client[0].lastName}` : "Client";
+          let clientName = "Client";
+          if (doc.clientId) {
+            const clientSnap = await firestore.collection('clients').doc(String(doc.clientId)).get();
+            if (clientSnap.exists) {
+              const client = mapDoc<Client>(clientSnap);
+              clientName = `${client.firstName} ${client.lastName}`;
+            }
+          }
 
-        try {
-          await sendEmail({
-            to: process.env.SMTP_USER || "coachdigitalparis@gmail.com",
-            subject: `${docType} ${doc[0].number} ouvert par ${clientName}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2 style="color: #E67E50;">Document ouvert</h2>
-                <p><strong>${clientName}</strong> vient d'ouvrir le ${docType.toLowerCase()} <strong>${doc[0].number}</strong>.</p>
-                <p><strong>Date:</strong> ${now.toLocaleString("fr-FR")}</p>
-                <p><strong>Montant:</strong> ${doc[0].totalTtc} €</p>
-                <p style="margin-top: 20px;">
-                  <a href="${process.env.VITE_APP_URL || "https://coachdigital.biz"}/documents" 
-                     style="background-color: #E67E50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">
-                    Voir le document
-                  </a>
-                </p>
-              </div>
-            `,
-            text: `${clientName} vient d'ouvrir le ${docType.toLowerCase()} ${doc[0].number}.`,
-          });
-        } catch (e) {
-          console.error("Erreur envoi notification ouverture:", e);
+          const docType = doc.type === "quote" ? "Devis" : "Facture";
+
+          try {
+            await sendEmail({
+              to: process.env.SMTP_USER || "coachdigitalparis@gmail.com",
+              subject: `${docType} ${doc.number} ouvert par ${clientName}`,
+              html: `
+                      <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h2 style="color: #E67E50;">Document ouvert</h2>
+                        <p><strong>${clientName}</strong> vient d'ouvrir le ${docType.toLowerCase()} <strong>${doc.number}</strong>.</p>
+                        <p><strong>Date:</strong> ${now.toLocaleString("fr-FR")}</p>
+                        <p><strong>Montant:</strong> ${doc.totalTtc} €</p>
+                        <p style="margin-top: 20px;">
+                          <a href="${process.env.VITE_APP_URL || "https://coachdigital.biz"}/documents" 
+                             style="background-color: #E67E50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">
+                            Voir le document
+                          </a>
+                        </p>
+                      </div>
+                    `,
+              text: `${clientName} vient d'ouvrir le ${docType.toLowerCase()} ${doc.number}.`,
+            });
+          } catch (e) {
+            console.error("Erreur envoi notification ouverture:", e);
+          }
         }
       }
 
-      return { success: true, documentId: tracking[0].documentId };
+      return { success: true, documentId: tracking.documentId };
     }),
 
   getDocumentByToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return null;
+      const trackSnap = await firestore.collection('documentTracking')
+        .where('trackingToken', '==', input.token)
+        .limit(1)
+        .get();
 
-      const tracking = await db
-        .select()
-        .from(documentTracking)
-        .where(eq(documentTracking.trackingToken, input.token))
-        .limit(1);
+      if (trackSnap.empty) return null;
+      const tracking = mapDoc<DocumentTracking>(trackSnap.docs[0]);
 
-      if (!tracking[0]) return null;
+      const docSnap = await firestore.collection('documents').doc(String(tracking.documentId)).get();
+      if (!docSnap.exists) return null;
+      const doc = mapDoc<ClientDocument>(docSnap);
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, tracking[0].documentId))
-        .limit(1);
-
-      if (!doc[0]) return null;
-
-      const client = await db
-        .select()
-        .from(clients)
-        .where(eq(clients.id, doc[0].clientId))
-        .limit(1);
+      let client: Client | null = null;
+      if (doc.clientId) {
+        const clientSnap = await firestore.collection('clients').doc(String(doc.clientId)).get();
+        if (clientSnap.exists) client = mapDoc<Client>(clientSnap);
+      }
 
       return {
-        document: doc[0],
-        client: client[0] || null,
-        tracking: tracking[0],
+        document: doc,
+        client,
+        tracking,
       };
     }),
 
   getRecentViews: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return [];
+    // Join simulation: fetch recent views, then fetch related data
+    const viewsSnap = await firestore.collection('documentViews')
+      .orderBy('viewedAt', 'desc')
+      .limit(20)
+      .get();
 
-    const recentViews = await db
-      .select({
-        view: documentViews,
-        tracking: documentTracking,
-      })
-      .from(documentViews)
-      .innerJoin(documentTracking, eq(documentViews.trackingId, documentTracking.id))
-      .orderBy(desc(documentViews.viewedAt))
-      .limit(20);
+    const views = viewsSnap.docs.map(doc => mapDoc<DocumentView>(doc));
 
     const results = [];
-    for (const { view, tracking } of recentViews) {
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, tracking.documentId))
-        .limit(1);
-
-      if (doc[0]) {
-        const client = await db
-          .select()
-          .from(clients)
-          .where(eq(clients.id, doc[0].clientId))
-          .limit(1);
+    for (const view of views) {
+      // Fetch tracking? View has trackingId but documentId too? Schema says yes.
+      // Assuming view has documentId.
+      const docSnap = await firestore.collection('documents').doc(String(view.documentId)).get();
+      if (docSnap.exists) {
+        const doc = mapDoc<ClientDocument>(docSnap);
+        let client: Client | null = null;
+        if (doc.clientId) {
+          const clientSnap = await firestore.collection('clients').doc(String(doc.clientId)).get();
+          if (clientSnap.exists) client = mapDoc<Client>(clientSnap);
+        }
 
         results.push({
           ...view,
-          document: doc[0],
-          client: client[0] || null,
+          document: doc,
+          client
         });
       }
     }
-
     return results;
   }),
 });
@@ -225,26 +212,29 @@ export const signatureRouter = router({
       expiresInDays: z.number().default(7),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
       const signatureToken = randomBytes(32).toString("hex");
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
 
-      const result = await db.insert(documentSignatures).values({
+      const id = await getNextId('documentSignatures');
+      await firestore.collection('documentSignatures').doc(String(id)).set({
+        id,
         documentId: input.documentId,
         signatureToken,
         signerName: input.signerName,
         signerEmail: input.signerEmail,
         signerRole: input.signerRole,
         expiresAt,
+        status: "pending",
+        reminderCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       const signatureUrl = `${process.env.VITE_APP_URL || "https://coachdigital.biz"}/sign/${signatureToken}`;
 
       return {
-        signatureId: Number(result[0].insertId),
+        signatureId: id,
         signatureToken,
         signatureUrl,
       };
@@ -258,36 +248,35 @@ export const signatureRouter = router({
       message: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
-
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, input.documentId))
-        .limit(1);
-
-      if (!doc[0]) throw new Error("Document introuvable");
+      const docSnap = await firestore.collection('documents').doc(String(input.documentId)).get();
+      if (!docSnap.exists) throw new Error("Document introuvable");
+      const doc = mapDoc<ClientDocument>(docSnap);
 
       const signatureToken = randomBytes(32).toString("hex");
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
-      await db.insert(documentSignatures).values({
+      const id = await getNextId('documentSignatures');
+      await firestore.collection('documentSignatures').doc(String(id)).set({
+        id,
         documentId: input.documentId,
         signatureToken,
         signerName: input.signerName,
         signerEmail: input.signerEmail,
         signerRole: "client",
         expiresAt,
+        status: "pending",
+        reminderCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       const signatureUrl = `${process.env.VITE_APP_URL || "https://coachdigital.biz"}/sign/${signatureToken}`;
-      const docType = doc[0].type === "quote" ? "devis" : "facture";
+      const docType = doc.type === "quote" ? "devis" : "facture";
 
       await sendEmail({
         to: input.signerEmail,
-        subject: `Signature requise - ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc[0].number}`,
+        subject: `Signature requise - ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc.number}`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
             <div style="text-align: center; margin-bottom: 30px;">
@@ -304,8 +293,8 @@ export const signatureRouter = router({
             ${input.message ? `<p style="background: #f5f5f5; padding: 15px; border-radius: 4px; font-style: italic;">${input.message}</p>` : ""}
             
             <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Document:</strong> ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc[0].number}</p>
-              <p><strong>Montant:</strong> ${doc[0].totalTtc} € TTC</p>
+              <p><strong>Document:</strong> ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc.number}</p>
+              <p><strong>Montant:</strong> ${doc.totalTtc} € TTC</p>
               <p><strong>Expire le:</strong> ${expiresAt.toLocaleDateString("fr-FR")}</p>
             </div>
             
@@ -330,46 +319,37 @@ export const signatureRouter = router({
   getByDocument: protectedProcedure
     .input(z.object({ documentId: z.number() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return [];
-
-      return await db
-        .select()
-        .from(documentSignatures)
-        .where(eq(documentSignatures.documentId, input.documentId))
-        .orderBy(desc(documentSignatures.createdAt));
+      const snapshot = await firestore.collection('documentSignatures')
+        .where('documentId', '==', input.documentId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs.map(doc => mapDoc<DocumentSignature>(doc));
     }),
 
   getByToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ input }) => {
-      const db = await getDb();
-      if (!db) return null;
+      const snap = await firestore.collection('documentSignatures')
+        .where('signatureToken', '==', input.token)
+        .limit(1)
+        .get();
 
-      const signature = await db
-        .select()
-        .from(documentSignatures)
-        .where(eq(documentSignatures.signatureToken, input.token))
-        .limit(1);
+      if (snap.empty) return null;
+      const signature = mapDoc<DocumentSignature>(snap.docs[0]);
 
-      if (!signature[0]) return null;
+      const docSnap = await firestore.collection('documents').doc(String(signature.documentId)).get();
+      const doc = docSnap.exists ? mapDoc<ClientDocument>(docSnap) : null;
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, signature[0].documentId))
-        .limit(1);
-
-      const client = doc[0] ? await db
-        .select()
-        .from(clients)
-        .where(eq(clients.id, doc[0].clientId))
-        .limit(1) : [];
+      let client = null;
+      if (doc && doc.clientId) {
+        const clientSnap = await firestore.collection('clients').doc(String(doc.clientId)).get();
+        if (clientSnap.exists) client = mapDoc<Client>(clientSnap);
+      }
 
       return {
-        signature: signature[0],
-        document: doc[0] || null,
-        client: client[0] || null,
+        signature,
+        document: doc,
+        client,
       };
     }),
 
@@ -381,58 +361,52 @@ export const signatureRouter = router({
       userAgent: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snap = await firestore.collection('documentSignatures')
+        .where('signatureToken', '==', input.token)
+        .limit(1)
+        .get();
 
-      const signature = await db
-        .select()
-        .from(documentSignatures)
-        .where(eq(documentSignatures.signatureToken, input.token))
-        .limit(1);
+      if (snap.empty) throw new Error("Token invalide");
+      const sigDoc = snap.docs[0];
+      const signature = mapDoc<DocumentSignature>(sigDoc);
 
-      if (!signature[0]) throw new Error("Token invalide");
-      if (signature[0].status === "signed") throw new Error("Document déjà signé");
-      if (signature[0].expiresAt && new Date(signature[0].expiresAt) < new Date()) {
+      if (signature.status === "signed") throw new Error("Document déjà signé");
+      if (signature.expiresAt && new Date(signature.expiresAt) < new Date()) {
         throw new Error("Le lien de signature a expiré");
       }
 
       const now = new Date();
 
-      await db.update(documentSignatures)
-        .set({
-          status: "signed",
-          signatureData: input.signatureData,
-          signedAt: now,
-          signedIp: input.ipAddress,
-          signedUserAgent: input.userAgent,
-        })
-        .where(eq(documentSignatures.id, signature[0].id));
+      await sigDoc.ref.update({
+        status: "signed",
+        signatureData: input.signatureData,
+        signedAt: now,
+        signedIp: input.ipAddress || null,
+        signedUserAgent: input.userAgent || null,
+        updatedAt: now
+      });
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, signature[0].documentId))
-        .limit(1);
+      const docRef = firestore.collection('documents').doc(String(signature.documentId));
+      const docSnap = await docRef.get();
+      const doc = docSnap.exists ? mapDoc<ClientDocument>(docSnap) : null;
 
-      if (doc[0] && doc[0].type === "quote") {
-        await db.update(documents)
-          .set({ status: "accepted" })
-          .where(eq(documents.id, doc[0].id));
+      if (doc && doc.type === "quote") {
+        await docRef.update({ status: "accepted" });
       }
 
-      if (doc[0]) {
-        const docType = doc[0].type === "quote" ? "Devis" : "Facture";
+      if (doc) {
+        const docType = doc.type === "quote" ? "Devis" : "Facture";
         try {
           await sendEmail({
             to: process.env.SMTP_USER || "coachdigitalparis@gmail.com",
-            subject: `${docType} ${doc[0].number} signé par ${signature[0].signerName}`,
+            subject: `${docType} ${doc.number} signé par ${signature.signerName}`,
             html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #22c55e;">Document signé</h2>
-                <p><strong>${signature[0].signerName}</strong> a signé le ${docType.toLowerCase()} <strong>${doc[0].number}</strong>.</p>
+                <p><strong>${signature.signerName}</strong> a signé le ${docType.toLowerCase()} <strong>${doc.number}</strong>.</p>
                 <p><strong>Date:</strong> ${now.toLocaleString("fr-FR")}</p>
-                <p><strong>Email:</strong> ${signature[0].signerEmail}</p>
-                <p><strong>Montant:</strong> ${doc[0].totalTtc} €</p>
+                <p><strong>Email:</strong> ${signature.signerEmail}</p>
+                <p><strong>Montant:</strong> ${doc.totalTtc} €</p>
                 <p style="margin-top: 20px;">
                   <a href="${process.env.VITE_APP_URL || "https://coachdigital.biz"}/documents" 
                      style="background-color: #22c55e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">
@@ -441,7 +415,7 @@ export const signatureRouter = router({
                 </p>
               </div>
             `,
-            text: `${signature[0].signerName} a signé le ${docType.toLowerCase()} ${doc[0].number}.`,
+            text: `${signature.signerName} a signé le ${docType.toLowerCase()} ${doc.number}.`,
           });
         } catch (e) {
           console.error("Erreur notification signature:", e);
@@ -457,47 +431,41 @@ export const signatureRouter = router({
       reason: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const snap = await firestore.collection('documentSignatures')
+        .where('signatureToken', '==', input.token)
+        .limit(1)
+        .get();
 
-      const signature = await db
-        .select()
-        .from(documentSignatures)
-        .where(eq(documentSignatures.signatureToken, input.token))
-        .limit(1);
+      if (snap.empty) throw new Error("Token invalide");
+      const sigDoc = snap.docs[0];
+      const signature = mapDoc<DocumentSignature>(sigDoc);
 
-      if (!signature[0]) throw new Error("Token invalide");
-      if (signature[0].status !== "pending") throw new Error("Action non autorisée");
+      if (signature.status !== "pending") throw new Error("Action non autorisée");
 
-      await db.update(documentSignatures)
-        .set({
-          status: "declined",
-          declinedReason: input.reason,
-        })
-        .where(eq(documentSignatures.id, signature[0].id));
+      await sigDoc.ref.update({
+        status: "declined",
+        declinedReason: input.reason || null,
+        updatedAt: new Date()
+      });
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, signature[0].documentId))
-        .limit(1);
+      const docRef = firestore.collection('documents').doc(String(signature.documentId));
+      const docSnap = await docRef.get();
+      const doc = docSnap.exists ? mapDoc<ClientDocument>(docSnap) : null;
 
-      if (doc[0] && doc[0].type === "quote") {
-        await db.update(documents)
-          .set({ status: "rejected" })
-          .where(eq(documents.id, doc[0].id));
+      if (doc && doc.type === "quote") {
+        await docRef.update({ status: "rejected" });
       }
 
-      if (doc[0]) {
-        const docType = doc[0].type === "quote" ? "Devis" : "Facture";
+      if (doc) {
+        const docType = doc.type === "quote" ? "Devis" : "Facture";
         try {
           await sendEmail({
             to: process.env.SMTP_USER || "coachdigitalparis@gmail.com",
-            subject: `${docType} ${doc[0].number} refusé par ${signature[0].signerName}`,
+            subject: `${docType} ${doc.number} refusé par ${signature.signerName}`,
             html: `
               <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2 style="color: #ef4444;">Document refusé</h2>
-                <p><strong>${signature[0].signerName}</strong> a refusé le ${docType.toLowerCase()} <strong>${doc[0].number}</strong>.</p>
+                <p><strong>${signature.signerName}</strong> a refusé le ${docType.toLowerCase()} <strong>${doc.number}</strong>.</p>
                 ${input.reason ? `<p><strong>Raison:</strong> ${input.reason}</p>` : ""}
                 <p style="margin-top: 20px;">
                   <a href="${process.env.VITE_APP_URL || "https://coachdigital.biz"}/documents" 
@@ -507,7 +475,7 @@ export const signatureRouter = router({
                 </p>
               </div>
             `,
-            text: `${signature[0].signerName} a refusé le ${docType.toLowerCase()} ${doc[0].number}. ${input.reason ? `Raison: ${input.reason}` : ""}`,
+            text: `${signature.signerName} a refusé le ${docType.toLowerCase()} ${doc.number}. ${input.reason ? `Raison: ${input.reason}` : ""}`,
           });
         } catch (e) {
           console.error("Erreur notification refus:", e);
@@ -520,40 +488,32 @@ export const signatureRouter = router({
   sendReminder: protectedProcedure
     .input(z.object({ signatureId: z.number() }))
     .mutation(async ({ input }) => {
-      const db = await getDb();
-      if (!db) throw new Error("Database not available");
+      const sigRef = firestore.collection('documentSignatures').doc(String(input.signatureId));
+      const sigSnap = await sigRef.get();
 
-      const signature = await db
-        .select()
-        .from(documentSignatures)
-        .where(eq(documentSignatures.id, input.signatureId))
-        .limit(1);
+      if (!sigSnap.exists) throw new Error("Signature introuvable");
+      const signature = mapDoc<DocumentSignature>(sigSnap);
+      if (signature.status !== "pending") throw new Error("Document déjà traité");
 
-      if (!signature[0]) throw new Error("Signature introuvable");
-      if (signature[0].status !== "pending") throw new Error("Document déjà traité");
+      const docRef = firestore.collection('documents').doc(String(signature.documentId));
+      const docSnap = await docRef.get();
+      if (!docSnap.exists) throw new Error("Document introuvable");
+      const doc = mapDoc<ClientDocument>(docSnap);
 
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, signature[0].documentId))
-        .limit(1);
-
-      if (!doc[0]) throw new Error("Document introuvable");
-
-      const signatureUrl = `${process.env.VITE_APP_URL || "https://coachdigital.biz"}/sign/${signature[0].signatureToken}`;
-      const docType = doc[0].type === "quote" ? "devis" : "facture";
+      const signatureUrl = `${process.env.VITE_APP_URL || "https://coachdigital.biz"}/sign/${signature.signatureToken}`;
+      const docType = doc.type === "quote" ? "devis" : "facture";
 
       await sendEmail({
-        to: signature[0].signerEmail,
-        subject: `Rappel: Signature requise - ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc[0].number}`,
+        to: signature.signerEmail,
+        subject: `Rappel: Signature requise - ${docType.charAt(0).toUpperCase() + docType.slice(1)} ${doc.number}`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #E67E50;">Rappel de signature</h2>
-            <p>Bonjour ${signature[0].signerName},</p>
+            <p>Bonjour ${signature.signerName},</p>
             <p>Nous vous rappelons qu'un ${docType} est en attente de votre signature.</p>
             <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p><strong>Document:</strong> ${doc[0].number}</p>
-              <p><strong>Montant:</strong> ${doc[0].totalTtc} € TTC</p>
+              <p><strong>Document:</strong> ${doc.number}</p>
+              <p><strong>Montant:</strong> ${doc.totalTtc} € TTC</p>
             </div>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${signatureUrl}" 
@@ -566,45 +526,36 @@ export const signatureRouter = router({
         text: `Rappel: Un ${docType} est en attente de votre signature. Signez ici: ${signatureUrl}`,
       });
 
-      await db.update(documentSignatures)
-        .set({
-          reminderSentAt: new Date(),
-          reminderCount: signature[0].reminderCount + 1,
-        })
-        .where(eq(documentSignatures.id, signature[0].id));
+      await sigRef.update({
+        reminderSentAt: new Date(),
+        reminderCount: (signature.reminderCount || 0) + 1
+      });
 
       return { success: true };
     }),
 
   getPendingSignatures: protectedProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return [];
+    const snap = await firestore.collection('documentSignatures')
+      .where('status', '==', 'pending')
+      .orderBy('createdAt', 'desc')
+      .get();
 
-    const pending = await db
-      .select()
-      .from(documentSignatures)
-      .where(eq(documentSignatures.status, "pending"))
-      .orderBy(desc(documentSignatures.createdAt));
+    const pending = snap.docs.map(doc => mapDoc<DocumentSignature>(doc));
 
     const results = [];
     for (const sig of pending) {
-      const doc = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, sig.documentId))
-        .limit(1);
-
-      if (doc[0]) {
-        const client = await db
-          .select()
-          .from(clients)
-          .where(eq(clients.id, doc[0].clientId))
-          .limit(1);
-
+      const docSnap = await firestore.collection('documents').doc(String(sig.documentId)).get();
+      if (docSnap.exists) {
+        const doc = mapDoc<ClientDocument>(docSnap);
+        let client = null;
+        if (doc.clientId) {
+          const clientSnap = await firestore.collection('clients').doc(String(doc.clientId)).get();
+          if (clientSnap.exists) client = mapDoc<Client>(clientSnap);
+        }
         results.push({
           ...sig,
-          document: doc[0],
-          client: client[0] || null,
+          document: doc,
+          client
         });
       }
     }

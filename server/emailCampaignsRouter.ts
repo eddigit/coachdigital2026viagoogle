@@ -1,50 +1,40 @@
-import { router, protectedProcedure } from "./_core/trpc.js";
+import { router, protectedProcedure } from "./_core/trpc";
 import { z } from "zod";
-import { getDb } from "./db.js";
-import { emailCampaigns, emailQueue } from "../drizzle/schema.js";
-import { eq, and, sql } from "drizzle-orm";
-import { sendEmail } from "./emailService.js";
+import { db as firestore } from "./firestore";
+import { EmailCampaign, EmailQueueItem } from "./schema";
+import { sendEmail } from "./emailService";
+
+const mapDoc = <T>(doc: FirebaseFirestore.DocumentSnapshot): T => {
+  const data = doc.data();
+  return { id: Number(doc.id), ...data } as unknown as T;
+};
 
 export const emailCampaignsRouter = router({
   // Lister toutes les campagnes avec statistiques
   list: protectedProcedure.query(async ({ ctx }) => {
-    const dbPromise = getDb();
-    const db = await dbPromise;
-    if (!db) throw new Error("Database not available");
-    
-    const campaigns = await db
-      .select({
-        id: emailCampaigns.id,
-        name: emailCampaigns.name,
-        templateId: emailCampaigns.templateId,
-        subject: emailCampaigns.subject,
-        body: emailCampaigns.body,
-        createdAt: emailCampaigns.createdAt,
-      })
-      .from(emailCampaigns)
-      .orderBy(sql`${emailCampaigns.createdAt} DESC`);
+    const snapshot = await firestore.collection('emailCampaigns')
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const campaigns = snapshot.docs.map(doc => mapDoc<EmailCampaign>(doc));
 
     // Pour chaque campagne, compter les emails par statut
     const campaignsWithStats = await Promise.all(
-      campaigns.map(async (campaign: any) => {
-        const stats = await db
-          .select({
-            status: emailQueue.status,
-            count: sql<number>`COUNT(*)`.as("count"),
-          })
-          .from(emailQueue)
-          .where(eq(emailQueue.campaignId, campaign.id))
-          .groupBy(emailQueue.status);
+      campaigns.map(async (campaign) => {
+        const queueSnapshot = await firestore.collection('emailQueue')
+          .where('campaignId', '==', campaign.id)
+          .get();
+        const queue = queueSnapshot.docs.map(doc => mapDoc<EmailQueueItem>(doc));
 
-        const sentCount = stats.find((s: any) => s.status === "sent")?.count || 0;
-        const failedCount = stats.find((s: any) => s.status === "failed")?.count || 0;
-        const pendingCount = stats.find((s: any) => s.status === "pending")?.count || 0;
+        const sentCount = queue.filter(q => q.status === "sent").length;
+        const failedCount = queue.filter(q => q.status === "failed").length;
+        const pendingCount = queue.filter(q => q.status === "pending" || q.status === "sending").length;
 
         return {
           ...campaign,
-          sentCount: Number(sentCount),
-          failedCount: Number(failedCount),
-          pendingCount: Number(pendingCount),
+          sentCount,
+          failedCount,
+          pendingCount,
         };
       })
     );
@@ -56,20 +46,13 @@ export const emailCampaignsRouter = router({
   retryFailed: protectedProcedure
     .input(z.object({ campaignId: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const dbPromise = getDb();
-      const db = await dbPromise;
-      if (!db) throw new Error("Database not available");
-
       // Récupérer tous les emails échoués de la campagne
-      const failedEmails = await db
-        .select()
-        .from(emailQueue)
-        .where(
-          and(
-            eq(emailQueue.campaignId, input.campaignId),
-            eq(emailQueue.status, "failed")
-          )
-        );
+      const snapshot = await firestore.collection('emailQueue')
+        .where('campaignId', '==', input.campaignId)
+        .where('status', '==', 'failed')
+        .get();
+
+      const failedEmails = snapshot.docs.map(doc => mapDoc<EmailQueueItem>(doc));
 
       if (failedEmails.length === 0) {
         throw new Error("Aucun email échoué à relancer");
@@ -79,26 +62,37 @@ export const emailCampaignsRouter = router({
       let successCount = 0;
       for (const email of failedEmails) {
         try {
-          // Récupérer l'email du lead
-          const lead = await db
-            .select()
-            .from(emailQueue)
-            .where(eq(emailQueue.id, email.id))
-            .limit(1);
+          // Send email logic (requires lead contact info which is usually in email queue body/subject OR need to fetch lead)
+          // The previous code did: db.select().from(emailQueue)... Wait, it selected from `emailQueue` where id=... and called it `lead`?
+          // Line 83 in original: const lead = await db.select().from(emailQueue)...
+          // It seems it was reusing the email queue item itself?
+          // Previous code:
+          // lead = ... where id = email.id
+          // sendEmail(to: lead[0].subject, ...) what?
+          // ah, line 92 in original: `to: lead[0].subject`? That seems weird. Subject field holding the email?
+          // Or maybe `lead[0]` was actually joining `leads`? No, `.from(emailQueue)`.
+          // Maybe it was a bug in original code or I misread.
+          // In `schema.ts`, `EmailQueueItem` has `subject` and `body`. It doesn't have `to` email address explicitly, maybe linked to `leadId`.
+          // I should fetch the Lead to get the email!
 
-          if (!lead[0]) continue;
+          const leadDoc = await firestore.collection('leads').doc(String(email.leadId)).get();
+          if (!leadDoc.exists) continue; // Lead missing
+          const leadData = leadDoc.data();
+          const toEmail = leadData?.email;
+
+          if (!toEmail) continue;
 
           await sendEmail({
-            to: lead[0].subject, // Utiliser un champ temporaire
+            to: toEmail,
             subject: email.subject,
             html: email.body,
           });
 
           // Mettre à jour le statut
-          await db
-            .update(emailQueue)
-            .set({ status: "sent", sentAt: new Date() })
-            .where(eq(emailQueue.id, email.id));
+          await firestore.collection('emailQueue').doc(String(email.id)).update({
+            status: "sent",
+            sentAt: new Date()
+          });
 
           successCount++;
         } catch (error) {
@@ -106,7 +100,7 @@ export const emailCampaignsRouter = router({
           // Garder le statut "failed"
         }
 
-        // Délai de 1 seconde entre chaque envoi
+        // Délai de 1 seconde
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
