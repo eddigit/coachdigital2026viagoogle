@@ -9,7 +9,9 @@ import {
 import {
   Sidebar,
   SidebarContent,
-
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -21,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target, Plus } from "lucide-react";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationsBell from "@/components/NotificationsBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -29,26 +31,75 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { trpc } from "@/lib/trpc";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Clients", path: "/clients" },
-  { icon: UserPlus, label: "Base de Leads", path: "/leads-base" },
-  { icon: Target, label: "Portefeuille", path: "/portfolio" },
-  { icon: Mail, label: "Campagnes Emails", path: "/email-campaigns" },
-  { icon: FileCode, label: "Templates Emails", path: "/email-templates" },
-  { icon: Briefcase, label: "Projets", path: "/projects" },
-  { icon: CheckSquare, label: "Tâches", path: "/tasks" },
-  { icon: FileText, label: "Documents", path: "/documents" },
-  { icon: FileCheck, label: "Cahiers des charges", path: "/requirements" },
-  { icon: Calendar, label: "Calendrier", path: "/calendar" },
-  { icon: Sun, label: "Aujourd'hui", path: "/today" },
-  { icon: Clock, label: "Suivi Temps", path: "/time-tracking" },
-  { icon: StickyNote, label: "Notes", path: "/notes" },
-  { icon: MessageSquare, label: "Messages", path: "/messages" },
-  { icon: Star, label: "Avis Clients", path: "/reviews" },
-  { icon: Lock, label: "Coffre-fort", path: "/vault" },
-  { icon: Settings, label: "Paramètres", path: "/settings" },
+type MenuItem = {
+  icon: any;
+  label: string;
+  path: string;
+};
+
+type MenuGroup = {
+  label?: string;
+  items: MenuItem[];
+  adminOnly?: boolean;
+};
+
+const menuGroups: MenuGroup[] = [
+  {
+    items: [
+      { icon: Sun, label: "Aujourd'hui", path: "/today" },
+    ],
+  },
+  {
+    label: "ACTIVITE",
+    items: [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+      { icon: Briefcase, label: "Projets", path: "/projects" },
+      { icon: FileCheck, label: "Cahier des charges", path: "/requirements" },
+      { icon: CheckSquare, label: "Tâches", path: "/tasks" },
+      { icon: Clock, label: "Suivi Temps", path: "/time-tracking" },
+    ],
+  },
+  {
+    label: "CRM & BUSINESS",
+    items: [
+      { icon: Users, label: "Clients", path: "/clients" },
+      { icon: Target, label: "Portefeuille", path: "/portfolio" },
+      { icon: FileText, label: "Documents", path: "/documents" },
+      { icon: MessageSquare, label: "Messages", path: "/messages" },
+    ],
+  },
+  {
+    label: "MARKETING",
+    items: [
+      { icon: UserPlus, label: "Base de Leads", path: "/leads-base" },
+      { icon: Mail, label: "Campagnes Emails", path: "/email-campaigns" },
+      { icon: MessageSquare, label: "Messages", path: "/messages" },
+      { icon: Star, label: "Avis Clients", path: "/reviews" },
+    ],
+  },
+  {
+    label: "OUTILS",
+    items: [
+      { icon: Calendar, label: "Calendrier", path: "/calendar" },
+      { icon: StickyNote, label: "Notes", path: "/notes" },
+      { icon: FileCode, label: "Templates Emails", path: "/email-templates" },
+      { icon: Lock, label: "Coffre-fort", path: "/vault" },
+    ],
+  },
+  {
+    label: "ADMIN",
+    adminOnly: true,
+    items: [
+      { icon: Settings, label: "Paramètres", path: "/settings" },
+    ],
+  },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -132,8 +183,43 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const allMenuItems = menuGroups.flatMap(group => group.items);
+  const activeMenuItem = allMenuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+
+  // Note dialog state
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [newNote, setNewNote] = useState({
+    title: "",
+    content: "",
+    color: "yellow" as "yellow" | "blue" | "green" | "red" | "purple" | "orange",
+  });
+
+  const utils = trpc.useUtils();
+  const createNoteMutation = trpc.notes.create.useMutation({
+    onSuccess: () => {
+      utils.notes.list.invalidate();
+      setIsNoteDialogOpen(false);
+      setNewNote({ title: "", content: "", color: "yellow" });
+      toast.success("Note créée avec succès");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la création de la note");
+    }
+  });
+
+  const handleCreateNote = () => {
+    if (!newNote.title || !newNote.content) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    createNoteMutation.mutate({
+      title: newNote.title,
+      content: newNote.content,
+      color: newNote.color,
+      pinned: false,
+    });
+  };
 
   useEffect(() => {
     if (isCollapsed) {
@@ -224,26 +310,41 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
-            <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
-                const isActive = location === item.path;
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => setLocation(item.path)}
-                      tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
-                    >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            {menuGroups.map((group, index) => {
+              if (group.adminOnly && user?.role !== 'admin') {
+                return null;
+              }
+
+              return (
+                <SidebarGroup key={index} className="py-2">
+                  {group.label && (
+                    <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                  )}
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {group.items.map(item => {
+                        const isActive = location === item.path;
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              onClick={() => setLocation(item.path)}
+                              tooltip={item.label}
+                              className={`h-10 transition-all font-normal`}
+                            >
+                              <item.icon
+                                className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                              />
+                              <span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              );
+            })}
           </SidebarContent>
 
 
@@ -277,6 +378,67 @@ function DashboardLayoutContent({
           
           {/* Notifications et Profil */}
           <div className="flex items-center gap-2">
+
+            {/* Bouton Nouvelle Note */}
+            <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+              <DialogTrigger asChild>
+                <button
+                  className="flex items-center justify-center h-9 w-9 rounded-lg hover:bg-accent/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring text-muted-foreground"
+                  title="Nouvelle note"
+                >
+                  <StickyNote className="h-5 w-5" />
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Créer une nouvelle note</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="note-title">Titre</Label>
+                    <Input
+                      id="note-title"
+                      value={newNote.title}
+                      onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                      placeholder="Titre de la note"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="note-content">Contenu</Label>
+                    <Textarea
+                      id="note-content"
+                      value={newNote.content}
+                      onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+                      placeholder="Contenu de la note..."
+                      rows={6}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="note-color">Couleur</Label>
+                    <Select
+                      value={newNote.color}
+                      onValueChange={(value: any) => setNewNote({ ...newNote, color: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yellow">🟡 Jaune</SelectItem>
+                        <SelectItem value="blue">🔵 Bleu</SelectItem>
+                        <SelectItem value="green">🟢 Vert</SelectItem>
+                        <SelectItem value="red">🔴 Rouge</SelectItem>
+                        <SelectItem value="purple">🟣 Violet</SelectItem>
+                        <SelectItem value="orange">🟠 Orange</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleCreateNote} className="w-full" disabled={createNoteMutation.isPending}>
+                    {createNoteMutation.isPending ? "Création..." : "Créer la note"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <NotificationsBell />
             {/* Widget Profil */}
             <DropdownMenu>
