@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import "./index.css";
+import { auth } from "@/lib/firebase";
 
 const queryClient = new QueryClient();
 
@@ -43,12 +44,18 @@ const trpcClient = trpc.createClient({
       url: "/api/trpc",
       transformer: superjson,
       async headers() {
-        // Get Firebase token from localStorage (set by useFirebaseAuth hook)
-        const token = localStorage.getItem("firebase-token");
-        if (token) {
-          return {
-            Authorization: `Bearer ${token}`,
-          };
+        // Get Firebase token directly from the SDK
+        const user = auth.currentUser;
+        if (user) {
+          try {
+            const token = await user.getIdToken();
+            return {
+              Authorization: `Bearer ${token}`,
+            };
+          } catch (error) {
+            console.error("Error fetching ID token:", error);
+            return {};
+          }
         }
         return {};
       },

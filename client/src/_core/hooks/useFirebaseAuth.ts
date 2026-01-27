@@ -25,17 +25,6 @@ export function useFirebaseAuth() {
                 error: null,
                 isAuthenticated: !!user,
             });
-
-            // Store token for API calls
-            if (user) {
-                getIdToken().then((token) => {
-                    if (token) {
-                        localStorage.setItem("firebase-token", token);
-                    }
-                });
-            } else {
-                localStorage.removeItem("firebase-token");
-            }
         });
 
         return () => unsubscribe();
@@ -66,7 +55,7 @@ export function useFirebaseAuth() {
     const logout = useCallback(async () => {
         try {
             await firebaseLogout();
-            localStorage.removeItem("firebase-token");
+            // localStorage clean up if needed, but we don't store token there anymore
         } catch (error) {
             console.error("Logout error:", error);
             throw error;
@@ -75,10 +64,7 @@ export function useFirebaseAuth() {
 
     const refresh = useCallback(async () => {
         if (auth.currentUser) {
-            const token = await getIdToken();
-            if (token) {
-                localStorage.setItem("firebase-token", token);
-            }
+            await getIdToken();
         }
     }, []);
 
