@@ -26,6 +26,7 @@ import EmailCampaigns from "./pages/EmailCampaigns";
 import EmailTemplates from "./pages/EmailTemplates";
 import Reviews from "./pages/Reviews";
 import Prospection from "./pages/Prospection";
+import Blog from "./pages/Blog";
 import ClientLogin from "./pages/client/ClientLogin";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientInvitation from "./pages/client/Invitation";
@@ -66,6 +67,7 @@ function Router() {
       <Route path="/email-templates" component={EmailTemplates} />
       <Route path="/reviews" component={Reviews} />
       <Route path="/prospection" component={Prospection} />
+      <Route path="/blog" component={Blog} />
 
       {/* Routes espace client */}
       <Route path="/client/login" component={ClientLogin} />

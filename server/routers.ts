@@ -28,6 +28,7 @@ import { documentTrackingRouter, signatureRouter } from "./documentSignatureRout
 import { projectSecretsRouter } from "./projectSecretsRouter";
 import { audiencesRouter } from "./audiencesRouter";
 import { adminRouter } from "./adminRouter";
+import { blogRouter } from "./blogRouter";
 
 // ============================================================================
 // SCHEMAS
@@ -124,6 +125,7 @@ export const appRouter = router({
   projectSecrets: projectSecretsRouter,
   audiences: audiencesRouter,
   admin: adminRouter,
+  blog: blogRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

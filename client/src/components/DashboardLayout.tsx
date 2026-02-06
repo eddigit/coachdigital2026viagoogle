@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useLocation } from "wouter";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target, Plus } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Briefcase, CheckSquare, FileText, Calendar, Clock, MessageSquare, Lock, Settings, FileCheck, User, Sun, TrendingUp, StickyNote, Mail, Star, FileCode, UserPlus, Target, Plus, Newspaper } from "lucide-react";
 import GlobalSearch from "@/components/GlobalSearch";
 import NotificationsBell from "@/components/NotificationsBell";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -97,6 +97,7 @@ const menuGroups: MenuGroup[] = [
     label: "ADMIN",
     adminOnly: true,
     items: [
+      { icon: Newspaper, label: "Blog", path: "/blog" },
       { icon: Settings, label: "Paramètres", path: "/settings" },
     ],
   },

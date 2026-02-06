@@ -615,3 +615,28 @@ export interface DocumentTracking {
     updatedAt: Date;
 }
 export type InsertDocumentTracking = Partial<DocumentTracking>;
+
+// ============================================================================
+// BLOG POSTS
+// ============================================================================
+
+export interface BlogPost {
+    id: number;
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    content: string; // HTML from Tiptap
+    coverImageUrl: string | null;
+    authorId: number;
+    authorName: string | null;
+    status: "draft" | "published" | "archived";
+    publishedAt: Date | null;
+    tags: string[]; // Array of tags
+    metaTitle: string | null;
+    metaDescription: string | null;
+    viewCount: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export type InsertBlogPost = Partial<BlogPost>;
