@@ -31,6 +31,9 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import ClientInvitation from "./pages/client/Invitation";
 import SignDocument from "./pages/SignDocument";
 import ViewDocument from "./pages/ViewDocument";
+import MentionsLegales from "./pages/MentionsLegales";
+import CGV from "./pages/CGV";
+import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
 import { usePWA } from "./hooks/usePWA";
 import InstallPWABanner from "./components/InstallPWABanner";
 import NotificationPermissionPrompt from "./components/NotificationPermissionPrompt";
@@ -73,6 +76,12 @@ function Router() {
       {/* Routes documents publiques */}
       <Route path="/sign/:token" component={SignDocument} />
       <Route path="/view/:token" component={ViewDocument} />
+
+      {/* Pages légales */}
+      <Route path="/mentions-legales" component={MentionsLegales} />
+      <Route path="/cgv" component={CGV} />
+      <Route path="/politique-confidentialite" component={PolitiqueConfidentialite} />
+      <Route path="/confidentialite" component={PolitiqueConfidentialite} />
 
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
